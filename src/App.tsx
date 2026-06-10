@@ -1429,14 +1429,14 @@ export default function App() {
               {activeFolderId && (
                 <div className="mb-3 shrink-0 px-4">
                   <TuiContainer label="Path" noPadding={true}>
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-4 py-1.5">
+                    <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-4 pt-1.3 pb-1.5">
                       <button
                         onClick={() => setActiveFolderId(null)}
                         className="hover:underline cursor-pointer text-primary"
                       >
                         Root
                       </button>
-                      <span>/</span>
+                      <span>&gt;</span>
                       <span className="text-foreground">
                         {(() => {
                           const f = items.find((x) => x.id === activeFolderId);
