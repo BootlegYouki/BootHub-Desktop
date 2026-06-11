@@ -110,7 +110,7 @@ const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
 
   if (loading) {
     return (
-      <div className="border-[1.5px] border-border aspect-video bg-card flex items-center justify-center select-none">
+      <div className="w-full h-full aspect-video bg-card flex items-center justify-center select-none">
         <span className="text-[10px] text-muted font-bold animate-pulse">[ Loading... ]</span>
       </div>
     );
@@ -118,14 +118,14 @@ const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
 
   if (!imgUrl) {
     return (
-      <div className="border-[1.5px] border-border aspect-video bg-black flex items-center justify-center select-none">
+      <div className="w-full h-full aspect-video bg-black flex items-center justify-center select-none">
         <ImageIcon size={24} className="text-zinc-700" />
       </div>
     );
   }
 
   return (
-    <div className="border-[1.5px] border-border aspect-video bg-black flex items-center justify-center overflow-hidden select-none">
+    <div className="w-full h-full aspect-video bg-black flex items-center justify-center overflow-hidden select-none">
       <img
         src={imgUrl}
         alt="thumbnail"
@@ -155,11 +155,13 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ file }) => {
 };
 
 interface PhotoPreviewModalProps {
-  itemId: string;
+  item: DumpItem;
   onClose: () => void;
+  onContextMenu: (e: React.MouseEvent, item: DumpItem) => void;
+  isContextMenuVisible: boolean;
 }
 
-const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ itemId, onClose }) => {
+const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ item, onClose, onContextMenu, isContextMenuVisible }) => {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -169,7 +171,7 @@ const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ itemId, onClose }
 
     const loadImg = async () => {
       try {
-        const blob = await getItemFile(itemId);
+        const blob = await getItemFile(item.id);
         if (blob && active) {
           objectUrl = URL.createObjectURL(blob);
           setImgUrl(objectUrl);
@@ -188,39 +190,31 @@ const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ itemId, onClose }
         URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [itemId]);
+  }, [item.id]);
 
   return (
     <div
-      onClick={onClose}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 select-none animate-in fade-in duration-150 cursor-zoom-out"
+      onClick={() => {
+        if (!isContextMenuVisible) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-4 select-none animate-in fade-in duration-150"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl flex flex-col items-center gap-4 cursor-default animate-in zoom-in-95 duration-150"
-      >
-        <TuiContainer label="Photo Preview" disableHover={true}>
-          <div className="relative flex flex-col items-center justify-center min-h-[200px] py-2">
-            {loading ? (
-              <span className="text-sm text-muted font-bold animate-pulse font-mono">[ Loading Image... ]</span>
-            ) : imgUrl ? (
-              <img
-                src={imgUrl}
-                alt="preview"
-                className="max-w-full max-h-[70vh] border-[1.5px] border-border object-contain bg-[#09090b]"
-              />
-            ) : (
-              <span className="text-sm text-destructive font-bold font-mono">Failed to load preview image.</span>
-            )}
-            
-            <div className="flex gap-4 mt-6 w-full max-w-xs justify-center mx-auto">
-              <TuiButton onPress={onClose} variant="outline" className="flex-1">
-                Close
-              </TuiButton>
-            </div>
-          </div>
-        </TuiContainer>
-      </div>
+      {loading ? (
+        <span className="text-sm text-muted font-bold animate-pulse font-mono">[ Loading Image... ]</span>
+      ) : imgUrl ? (
+        <img
+          src={imgUrl}
+          alt="preview"
+          className="max-w-[80vw] max-h-[80vh] object-contain select-none shadow-2xl animate-in zoom-in-95 duration-150"
+          onContextMenu={(e) => onContextMenu(e, item)}
+        />
+      ) : (
+        <span className="text-sm text-destructive font-bold font-mono bg-[#18181b] border-[1.5px] border-border p-4 shadow-xl">
+          Failed to load preview image.
+        </span>
+      )}
     </div>
   );
 };
@@ -708,7 +702,7 @@ export default function App() {
 
     // 1. Process text input if present
     if (trimmedText) {
-      const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(trimmedText);
+      const isUrl = /^https?:\/\//i.test(trimmedText) || /^(https?:\/\/)?((?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost)(:\d+)?(\/.*)?$/i.test(trimmedText);
       const type = isUrl ? 'link' : 'text';
       const textId = `${Date.now()}_text_${Math.random().toString(36).substring(2, 5)}`;
       
@@ -945,7 +939,6 @@ export default function App() {
   // Copy helper
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    showAlert('Success', 'Copied to clipboard!');
   };
 
   // Download binary helper
@@ -970,28 +963,57 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  const convertImageBlobToPng = (blob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((pngBlob) => {
+          URL.revokeObjectURL(url);
+          if (pngBlob) {
+            resolve(pngBlob);
+          } else {
+            reject(new Error('Failed to convert canvas to blob'));
+          }
+        }, 'image/png');
+      };
+      img.onerror = (err) => {
+        URL.revokeObjectURL(url);
+        reject(err);
+      };
+      img.src = url;
+    });
+  };
+
   const handleCopyItem = async (item: DumpItem) => {
     try {
       if (item.type === 'text' || item.type === 'link') {
         await navigator.clipboard.writeText(item.value);
-        showAlert('Success', 'Copied text to clipboard!');
       } else if (item.type === 'photo') {
         const blob = await getItemFile(item.id);
         if (blob) {
           try {
+            const pngBlob = await convertImageBlobToPng(blob);
             await navigator.clipboard.write([
               new ClipboardItem({
-                [blob.type]: blob
+                'image/png': pngBlob
               })
             ]);
-            showAlert('Success', 'Copied photo to clipboard!');
           } catch (e) {
             await navigator.clipboard.writeText(item.value);
-            showAlert('Success', 'Copied photo filename to clipboard!');
           }
         } else {
           await navigator.clipboard.writeText(item.value);
-          showAlert('Success', 'Copied photo filename to clipboard!');
         }
       } else {
         let name = item.value;
@@ -1000,7 +1022,6 @@ export default function App() {
           name = parsed.name || item.value;
         } catch (_) {}
         await navigator.clipboard.writeText(name);
-        showAlert('Success', `Copied filename "${name}" to clipboard!`);
       }
     } catch (err) {
       console.error('Copy failed:', err);
@@ -1010,21 +1031,10 @@ export default function App() {
 
   const handleCutItem = async (item: DumpItem) => {
     await handleCopyItem(item);
-
-    const currentItems = await getItems();
-    const filtered = currentItems.filter((x) => x.id !== item.id);
-    await saveItems(filtered);
-    setItems(filtered);
-
-    if (item.type === 'photo' || item.type === 'file') {
-      await deleteItemFile(item.id);
-    }
-
-    await enqueueSyncTask('DELETE', item.id, item.type, {
-      driveFileId: item.driveFileId,
-      driveMetaFileId: item.driveMetaFileId,
+    setClipboard({
+      type: 'cut',
+      itemIds: new Set([item.id]),
     });
-    processSyncQueue();
   };
 
   // Folder helper
@@ -1247,12 +1257,39 @@ export default function App() {
       } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
         e.preventDefault();
         handleCopySelected();
+        if (selectedIds.size === 1) {
+          const singleItemId = Array.from(selectedIds)[0];
+          const item = items.find(x => x.id === singleItemId);
+          if (item) {
+            handleCopyItem(item);
+          }
+        } else if (selectedIds.size > 1) {
+          const itemsToCopy = items.filter(x => selectedIds.has(x.id) && (x.type === 'text' || x.type === 'link'));
+          const concatenated = itemsToCopy.map(x => x.value).join('\n');
+          if (concatenated) {
+            handleCopyText(concatenated);
+          }
+        }
       } else if (e.ctrlKey && e.key.toLowerCase() === 'x') {
         e.preventDefault();
         handleCutSelected();
       } else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         handlePasteSelected();
+      } else if (e.key === 'Enter' && selectedIds.size === 1) {
+        e.preventDefault();
+        const singleItemId = Array.from(selectedIds)[0];
+        const item = items.find(x => x.id === singleItemId);
+        if (item) {
+          if (item.type === 'folder') {
+            setActiveFolderId(item.id);
+          } else if (item.type === 'photo') {
+            setPreviewPhotoId(item.id);
+          } else if (item.type === 'link') {
+            const url = item.value.startsWith('http') ? item.value : `https://${item.value}`;
+            openUrl(url).catch((err) => console.error('Failed to open URL:', err));
+          }
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1291,6 +1328,8 @@ export default function App() {
         }}
         onClick={(e) => {
           e.stopPropagation();
+          const isAlreadySelected = selectedIds.has(item.id) && selectedIds.size === 1;
+
           const newSelected = new Set(selectedIds);
           if (e.ctrlKey || e.metaKey) {
             if (newSelected.has(item.id)) {
@@ -1320,6 +1359,14 @@ export default function App() {
           }
           setSelectedIds(newSelected);
 
+          if (isAlreadySelected) {
+            if (item.type === 'folder') {
+              setActiveFolderId(item.id);
+            } else if (item.type === 'photo') {
+              setPreviewPhotoId(item.id);
+            }
+          }
+
           if (item.type === 'link') {
             const url = item.value.startsWith('http') ? item.value : `https://${item.value}`;
             openUrl(url).catch((err) => console.error('Failed to open URL:', err));
@@ -1329,79 +1376,94 @@ export default function App() {
           if (item.type === 'folder') {
             e.stopPropagation();
             setActiveFolderId(item.id);
+          } else if (item.type === 'photo') {
+            e.stopPropagation();
+            setPreviewPhotoId(item.id);
           }
         }}
       >
-        <TuiContainer
-          label={item.type === 'folder' ? '' : item.label}
-          accentBorder={isSyncing || isSelected}
-          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-          contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-        >
-          {/* Sync Progress Bar */}
-          {isSyncing && (
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20">
-              <div
-                className="h-full bg-primary transition-all duration-150"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3 h-full justify-between flex-1">
-            {/* Content area */}
-            {item.type === 'folder' ? (
-              <div
-                className="flex items-center gap-3 text-left w-full hover:text-primary group"
-              >
-                <Folder size={16} className="text-primary fill-primary/10 group-hover:scale-110 transition-transform duration-150" />
-                <span className="font-bold text-sm leading-tight">{getFolderName(item)}</span>
-              </div>
-            ) : item.type === 'link' ? (
-              <div className="flex flex-col gap-1">
-                <a
-                  href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                  }}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline text-sm font-bold flex items-center justify-between gap-1.5 w-full min-w-0"
-                >
-                  <span className="truncate flex-1 min-w-0">
-                    {item.value}
-                  </span>
-                  <ArrowUpRight size={14} className="shrink-0" />
-                </a>
-                <LinkPreview url={item.value.startsWith('http') ? item.value : `https://${item.value}`} />
-              </div>
-            ) : item.type === 'text' ? (
-              <p className="text-xs leading-relaxed text-foreground break-all whitespace-pre-wrap select-text">
-                {item.value}
-              </p>
-            ) : item.type === 'photo' ? (
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => setPreviewPhotoId(item.id)}
-                  className="w-full text-left cursor-pointer hover:opacity-95 active:scale-[0.99] transition-all duration-150"
-                  title="Click to view full preview"
-                >
-                  <PhotoThumbnail itemId={item.id} />
-                </button>
-              </div>
-            ) : (
-              // File
-              <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-bold leading-tight truncate">
-                  {JSON.parse(item.value).name}
-                </p>
-                <p className="text-[10px] text-muted">
-                  {(JSON.parse(item.value).size / 1024).toFixed(1)} KB
-                </p>
+        {item.type === 'photo' ? (
+          <div
+            className={`w-full h-full relative border-[1.5px] bg-card transition-all ${
+              isSelected
+                ? 'border-primary shadow-[0_0_8px_rgba(168,85,247,0.3)]'
+                : 'border-border hover:border-foreground'
+            }`}
+            title="Double click to view full preview"
+          >
+            {/* Sync Progress Bar */}
+            {isSyncing && (
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20 z-20">
+                <div
+                  className="h-full bg-primary transition-all duration-150"
+                  style={{ width: `${progress * 100}%` }}
+                />
               </div>
             )}
+            <PhotoThumbnail itemId={item.id} />
           </div>
-        </TuiContainer>
+        ) : (
+          <TuiContainer
+            label={item.type === 'folder' ? '' : item.label}
+            accentBorder={isSyncing || isSelected}
+            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+            contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+          >
+            {/* Sync Progress Bar */}
+            {isSyncing && (
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20">
+                <div
+                  className="h-full bg-primary transition-all duration-150"
+                  style={{ width: `${progress * 100}%` }}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 h-full justify-between flex-1">
+              {/* Content area */}
+              {item.type === 'folder' ? (
+                <div
+                  className="flex items-center gap-3 text-left w-full hover:text-primary group"
+                >
+                  <Folder size={16} className="text-primary fill-primary/10 group-hover:scale-110 transition-transform duration-150" />
+                  <span className="font-bold text-sm leading-tight">{getFolderName(item)}</span>
+                </div>
+              ) : item.type === 'link' ? (
+                <div className="flex flex-col gap-1">
+                  <a
+                    href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                    }}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm font-bold flex items-center justify-between gap-1.5 w-full min-w-0"
+                  >
+                    <span className="truncate flex-1 min-w-0">
+                      {item.value}
+                    </span>
+                    <ArrowUpRight size={14} className="shrink-0" />
+                  </a>
+                  <LinkPreview url={item.value.startsWith('http') ? item.value : `https://${item.value}`} />
+                </div>
+              ) : item.type === 'text' ? (
+                <p className="text-xs leading-relaxed text-foreground break-all whitespace-pre-wrap select-text">
+                  {item.value}
+                </p>
+              ) : (
+                // File
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-bold leading-tight truncate">
+                    {JSON.parse(item.value).name}
+                  </p>
+                  <p className="text-[10px] text-muted">
+                    {(JSON.parse(item.value).size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+              )}
+            </div>
+          </TuiContainer>
+        )}
       </div>
     );
   };
@@ -1628,29 +1690,6 @@ export default function App() {
               style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}
               contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, padding: '12px' }}
             >
-              {/* BREADCRUMB */}
-              {activeFolderId && (
-                <div className="mb-3 shrink-0 px-4">
-                  <TuiContainer label="Path" noPadding={true}>
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-4 pt-2 pb-1.5">
-                      <button
-                        onClick={() => setActiveFolderId(null)}
-                        className="hover:underline cursor-pointer text-primary"
-                      >
-                        Root
-                      </button>
-                      <span>&gt;</span>
-                      <span className="text-foreground">
-                        {(() => {
-                          const f = items.find((x) => x.id === activeFolderId);
-                          return f ? getFolderName(f) : 'Folder';
-                        })()}
-                      </span>
-                    </div>
-                  </TuiContainer>
-                </div>
-              )}
-
               {/* WORKSPACE CONTENT CARD ENVELOPE / DRAG & DROP ZONE */}
               <div
                 onDragEnter={handleDragEnter}
@@ -1709,6 +1748,28 @@ export default function App() {
                 }}
                 className="flex-1 flex flex-col p-4 min-h-0 min-w-0 overflow-y-auto"
               >
+                {/* BREADCRUMB */}
+                {activeFolderId && (
+                  <div className="mb-4 shrink-0">
+                    <TuiContainer label="Path" noPadding={true}>
+                      <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-1.5">
+                        <button
+                          onClick={() => setActiveFolderId(null)}
+                          className="hover:underline cursor-pointer text-primary"
+                        >
+                          Root
+                        </button>
+                        <span>&gt;</span>
+                        <span className="text-foreground">
+                          {(() => {
+                            const f = items.find((x) => x.id === activeFolderId);
+                            return f ? getFolderName(f) : 'Folder';
+                          })()}
+                        </span>
+                      </div>
+                    </TuiContainer>
+                  </div>
+                )}
                 <div className="flex-1 min-h-0">
                   {filteredList.length === 0 ? (
                     <div className="h-full flex items-center justify-center text-muted text-sm select-none">
@@ -1904,8 +1965,19 @@ export default function App() {
       {/* PHOTO PREVIEW OVERLAY MODAL */}
       {previewPhotoId && (
         <PhotoPreviewModal
-          itemId={previewPhotoId}
+          item={items.find(x => x.id === previewPhotoId)!}
           onClose={() => setPreviewPhotoId(null)}
+          isContextMenuVisible={contextMenu.visible}
+          onContextMenu={(e, item) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setContextMenu({
+              visible: true,
+              x: e.clientX,
+              y: e.clientY,
+              item,
+            });
+          }}
         />
       )}
 
@@ -1943,25 +2015,7 @@ export default function App() {
                   if (concatenated) {
                     await navigator.clipboard.writeText(concatenated);
                   }
-                  
-                  const currentItems = await getItems();
-                  const remaining = currentItems.filter(x => !selectedIds.has(x.id));
-                  const deletedItems = currentItems.filter(x => selectedIds.has(x.id));
-                  await saveItems(remaining);
-                  setItems(remaining);
-                  setSelectedIds(new Set());
-
-                  for (const delItem of deletedItems) {
-                    if (delItem.type === 'photo' || delItem.type === 'file') {
-                      await deleteItemFile(delItem.id);
-                    }
-                    await enqueueSyncTask('DELETE', delItem.id, delItem.type, {
-                      driveFileId: delItem.driveFileId,
-                      driveMetaFileId: delItem.driveMetaFileId,
-                    });
-                  }
-                  processSyncQueue();
-                  showAlert('Success', `Cut ${selectedIds.size} items to clipboard!`);
+                  handleCutSelected();
                   setContextMenu((prev) => ({ ...prev, visible: false }));
                 }}
                 className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
