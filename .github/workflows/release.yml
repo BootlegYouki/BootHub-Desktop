@@ -61,6 +61,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'BootHub v__VERSION__'
           releaseBody: 'BootHub Desktop Release v__VERSION__. See assets below to install.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
