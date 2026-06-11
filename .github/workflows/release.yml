@@ -14,6 +14,42 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart("v")
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Update configuration versions
+        run: |
+          # Update package.json
+          $packageJson = Get-Content package.json | ConvertFrom-Json
+          $packageJson.version = "$env:VERSION"
+          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
+
+          # Update tauri.conf.json
+          $tauriJson = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $tauriJson.version = "$env:VERSION"
+          $tauriJson | ConvertTo-Json -Depth 100 | Set-Content src-tauri/tauri.conf.json
+
+          # Update Cargo.toml
+          $cargo = Get-Content src-tauri/Cargo.toml -Raw
+          $cargo = $cargo -replace '(?m)^version\s*=\s*".*?"', "version = `"$env:VERSION`""
+          Set-Content src-tauri/Cargo.toml $cargo
+        shell: pwsh
+
+      - name: Commit version updates
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git commit -m "chore: bump version to $env:VERSION [skip ci]" || exit 0
+          git push origin HEAD:main
+        shell: pwsh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
