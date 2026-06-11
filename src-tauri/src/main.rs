@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    boothub_desktop_lib::run()
+    boothub_lib::run()
 }

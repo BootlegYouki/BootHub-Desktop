@@ -296,7 +296,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "boothub-desktop"
+name = "boothub"
 version = "0.1.0"
 dependencies = [
  "serde",
