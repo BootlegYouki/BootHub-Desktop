@@ -704,22 +704,8 @@ export const deleteItemFilesFromDrive = async (accessToken: string, itemId: stri
   }
 };
 
-type ConflictResolver = (count: number) => Promise<'follow_drive' | 'follow_phone'>;
-let conflictResolver: ConflictResolver | null = null;
-
-export const setConflictResolver = (resolver: ConflictResolver) => {
-  conflictResolver = resolver;
-};
-
-const askConflictResolution = async (count: number): Promise<'follow_drive' | 'follow_phone'> => {
-  if (conflictResolver) {
-    return await conflictResolver(count);
-  }
-
-  const restore = window.confirm(
-    `We found ${count} item(s) that were deleted on Google Drive but still exist on this device. Would you like to restore them to the cloud?\n\nClick OK to restore to the cloud, Cancel to remove them from this device.`
-  );
-  return restore ? 'follow_phone' : 'follow_drive';
+export const setConflictResolver = (_resolver: (count: number) => Promise<any>) => {
+  // Deprecated: conflict resolution is now automatically handled by propagating remote deletions.
 };
 
 export const pullChangesFromDrive = async (): Promise<void> => {
@@ -768,9 +754,7 @@ export const pullChangesFromDrive = async (): Promise<void> => {
     );
 
     let resolveAction: 'follow_drive' | 'follow_phone' = 'follow_drive';
-    if (itemsDeletedRemotely.length > 0) {
-      resolveAction = await askConflictResolution(itemsDeletedRemotely.length);
-    }
+    // Remote deletions (e.g., from phone) automatically propagate locally to keep sync seamless.
 
     const updatedLocalItems: DumpItem[] = [];
 

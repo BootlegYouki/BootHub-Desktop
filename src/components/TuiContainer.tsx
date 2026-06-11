@@ -10,6 +10,7 @@ interface TuiContainerProps {
   onBadgePress?: () => void;
   noPadding?: boolean;
   onPress?: () => void;
+  disableHover?: boolean;
 }
 
 export const TuiContainer: React.FC<TuiContainerProps> = ({
@@ -22,17 +23,20 @@ export const TuiContainer: React.FC<TuiContainerProps> = ({
   onBadgePress,
   noPadding = false,
   onPress,
+  disableHover = false,
 }) => {
   const borderClass = accentBorder
     ? 'border-primary'
-    : 'border-border hover:border-foreground';
+    : disableHover
+      ? 'border-border'
+      : 'border-border hover:border-foreground';
 
   const legendClass = accentBorder
     ? 'text-primary'
     : 'text-foreground';
 
   return (
-    <fieldset
+    <div
       onClick={onPress}
       className={`group w-full min-w-0 relative border-[1.5px] bg-card text-foreground ${borderClass} ${
         onPress ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]' : ''
@@ -40,7 +44,7 @@ export const TuiContainer: React.FC<TuiContainerProps> = ({
       style={style}
     >
       {(label || badge) && (
-        <legend className={`px-2 font-bold text-sm select-none flex items-center gap-2 ml-4 ${legendClass}`}>
+        <div className={`absolute -top-[10px] left-4 px-2 bg-card font-bold text-xs select-none flex items-center gap-2 z-10 ${legendClass}`}>
           {label}
           {badge && (
             <span
@@ -57,11 +61,11 @@ export const TuiContainer: React.FC<TuiContainerProps> = ({
               {badge}
             </span>
           )}
-        </legend>
+        </div>
       )}
       <div className={noPadding ? '' : 'p-3'} style={contentStyle}>
         {children}
       </div>
-    </fieldset>
+    </div>
   );
 };

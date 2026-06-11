@@ -64,6 +64,8 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
   useEffect(() => {
     let active = true;
+    let timeoutId: any = null;
+    const controller = new AbortController();
 
     const fetchMetadata = async () => {
       if (previewCache.has(url)) {
@@ -109,12 +111,27 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
       // Scrape Webpage (CORS-free due to Tauri fetch adapter bound to axios)
       try {
         setLoading(true);
+
+        timeoutId = setTimeout(() => {
+          if (active) {
+            controller.abort();
+            setLoading(false);
+            setData(null);
+          }
+        }, 3000);
+
         const response = await axios.get(url, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
           },
-          responseType: 'text'
+          responseType: 'text',
+          signal: controller.signal
         });
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         const html = response.data;
 
         const metaTags = extractMetaTags(html);
@@ -153,6 +170,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
           setData(finalData);
         }
       } catch (err) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         console.warn('Failed to load link preview for:', url, err);
         previewCache.set(url, null);
         if (active) setData(null);
@@ -165,6 +185,10 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
     return () => {
       active = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      controller.abort();
     };
   }, [url]);
 
@@ -172,8 +196,10 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
     return (
       <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 animate-pulse select-none">
         <div className="w-full aspect-[21/9] bg-zinc-800/40 border-[1.5px] border-border/40" />
-        <div className="bg-[#18181b]/35 dark:bg-[#18181b]/50 p-2 border-[1.5px] border-border/30 flex flex-col gap-2">
+        <div className="bg-[#18181b]/35 dark:bg-[#18181b]/10 p-2 border-[1.5px] border-border/30 flex flex-col gap-2">
           <div className="h-3 bg-zinc-800/50 w-2/3" />
+          <div className="h-2 bg-zinc-800/40 w-6/6" />
+          <div className="h-2 bg-zinc-800/40 w-6/6" />
           <div className="h-2 bg-zinc-800/40 w-5/6" />
         </div>
       </div>
@@ -198,21 +224,22 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
       ) : (
         <div className="w-full aspect-[21/9] border-[1.5px] border-border/30 bg-[#27272a]/30" />
       )}
-      <div className="bg-[#18181b]/35 dark:bg-[#18181b]/50 p-2 border-[1.5px] border-border/30 flex flex-col gap-2 min-h-[58px] justify-between">
+      <div className="dark:bg-[#18181b]/5 p-2 border-[1.5px] border-border/30 flex flex-col gap-2 min-h-[58px] justify-between">
         {previewData.title ? (
-          <h5 className="font-bold text-[10px] text-primary truncate leading-normal">
+          <h5 className="font-bold text-[13px] text-primary truncate leading-normal">
             {previewData.title}
           </h5>
         ) : (
           <div className="h-3 bg-[#27272a]/40 w-2/3 my-0.5" />
         )}
         {previewData.description ? (
-          <p className="text-[9px] text-muted line-clamp-2 leading-relaxed">
+          <p className="text-[12px] text-primary line-clamp-2 leading-relaxed">
             {previewData.description}
           </p>
         ) : (
           <div className="flex flex-col gap-1.5 py-0.5">
-            <div className="h-2 bg-[#27272a]/30 w-5/6" />
+            <div className="h-2 bg-[#27272a]/30 w-6/6" />
+            <div className="h-2 bg-[#27272a]/30 w-6/6" />
             <div className="h-2 bg-[#27272a]/20 w-2/3" />
           </div>
         )}

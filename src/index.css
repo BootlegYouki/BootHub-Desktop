@@ -21,28 +21,27 @@
     color: var(--color-foreground);
     font-family: var(--font-mono);
   }
+  *:focus, *:focus-visible {
+    outline: none !important;
+  }
 }
 
-/* Custom retro TUI custom scrollbar */
+/* Thin scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 4px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #09090b;
-  border-left: 1.5px solid #27272a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #18181b;
-  border: 1.5px solid #27272a;
-  box-shadow: 2px 2px 0px #a855f7;
+  background: rgba(113, 113, 122, 0.4);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a855f7;
-  box-shadow: none;
+  background: rgba(113, 113, 122, 0.6);
 }
 
 /* ── Custom Title Bar ── */

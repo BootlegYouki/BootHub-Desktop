@@ -30,7 +30,7 @@ export const TuiAlertModal: React.FC<TuiAlertModalProps> = ({
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 animate-in fade-in duration-100 select-none">
       <div className="w-full max-w-sm">
-        <TuiContainer label={title}>
+        <TuiContainer label={title} disableHover={true}>
           <div className="py-2">
             <p className="text-sm font-mono leading-relaxed mb-6 text-foreground break-words whitespace-pre-wrap">
               {message}

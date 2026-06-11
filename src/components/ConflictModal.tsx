@@ -25,7 +25,7 @@ export const ConflictModal: React.FC<ConflictModalProps> = ({
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 select-none">
       <div className="w-full max-w-md">
-        <TuiContainer label={title}>
+        <TuiContainer label={title} disableHover={true}>
           <div className="py-2">
             <p className="text-sm leading-relaxed mb-6 font-mono text-foreground whitespace-pre-line">
               {message}

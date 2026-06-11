@@ -21,6 +21,7 @@ import { TuiAlertModal } from './components/TuiAlertModal';
 import { TitleBar } from './components/TitleBar';
 import { IconSvg } from './components/IconSvg';
 import { listen } from '@tauri-apps/api/event';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   initiateOAuthFlow,
   exchangeCodeForTokens,
@@ -134,6 +135,25 @@ const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
   );
 };
 
+interface ImagePreviewProps {
+  file: File;
+}
+
+const ImagePreview: React.FC<ImagePreviewProps> = ({ file }) => {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [file]);
+
+  if (!url) return null;
+  return <img src={url} alt="preview" className="w-full h-full object-cover" />;
+};
+
 interface PhotoPreviewModalProps {
   itemId: string;
   onClose: () => void;
@@ -179,7 +199,7 @@ const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ itemId, onClose }
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-3xl flex flex-col items-center gap-4 cursor-default animate-in zoom-in-95 duration-150"
       >
-        <TuiContainer label="Photo Preview">
+        <TuiContainer label="Photo Preview" disableHover={true}>
           <div className="relative flex flex-col items-center justify-center min-h-[200px] py-2">
             {loading ? (
               <span className="text-sm text-muted font-bold animate-pulse font-mono">[ Loading Image... ]</span>
@@ -237,6 +257,25 @@ export default function App() {
   // Input fields
   const [inputText, setInputText] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [inputText]);
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmitItem();
+    }
+  };
 
   const handleDragEnter = (e: React.DragEvent) => {
     if (isInternalDrag.current) return;
@@ -271,7 +310,7 @@ export default function App() {
     setDragActive(false);
     dragCounter.current = 0;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileDrop(e.dataTransfer.files);
+      handleDirectAddFiles(e.dataTransfer.files);
     }
   };
 
@@ -405,6 +444,10 @@ export default function App() {
     currentX: number;
     currentY: number;
   }>({ active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 });
+  const [clipboard, setClipboard] = useState<{
+    type: 'copy' | 'cut';
+    itemIds: Set<string>;
+  } | null>(null);
 
   // Global handler to hide context menu on click or right-click elsewhere
   useEffect(() => {
@@ -437,83 +480,7 @@ export default function App() {
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
   }, []);
 
-  const handleClipboardFiles = async (files: File[]) => {
-    if (files.length === 0) return;
 
-    const currentItems = await getItems();
-    const newItemsList: DumpItem[] = [];
-
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(
-      now.getHours()
-    )}:${pad(now.getMinutes())}`;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const id = `${Date.now()}_clipboard_${i}`;
-      const isImage = file.type.startsWith('image/');
-      const type = (isImage || activeTab === 'photo') ? 'photo' : 'file';
-
-      let value = '';
-      if (type === 'photo') {
-        value = file.name || `screenshot_${id}.png`;
-      } else {
-        value = JSON.stringify({
-          name: file.name || `file_${id}.bin`,
-          size: file.size,
-          mimeType: file.type,
-        });
-      }
-
-      const newItem: DumpItem = {
-        id,
-        type,
-        label,
-        value,
-        syncState: 'pending',
-        folderId: activeFolderId || undefined,
-      };
-
-      await saveItemFile(id, file);
-      await addItem(newItem);
-      newItemsList.push(newItem);
-    }
-
-    const merged = [...newItemsList, ...currentItems];
-    setItems(merged);
-
-    await enqueueSyncTasks(
-      newItemsList.map((item) => ({
-        action: 'UPLOAD',
-        itemId: item.id,
-        itemType: item.type,
-      }))
-    );
-    processSyncQueue();
-  };
-
-  useEffect(() => {
-    const handleGlobalPaste = (e: ClipboardEvent) => {
-      const clipboardItems = e.clipboardData?.items;
-      if (!clipboardItems) return;
-
-      const files: File[] = [];
-      for (let i = 0; i < clipboardItems.length; i++) {
-        const item = clipboardItems[i];
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) files.push(file);
-        }
-      }
-
-      if (files.length > 0) {
-        handleClipboardFiles(files);
-      }
-    };
-    window.addEventListener('paste', handleGlobalPaste);
-    return () => window.removeEventListener('paste', handleGlobalPaste);
-  }, [activeFolderId, activeTab]);
 
   // Load local database items and auth status on mount
   useEffect(() => {
@@ -729,44 +696,94 @@ export default function App() {
 
   const handleSubmitItem = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+    const trimmedText = inputText.trim();
+    if (!trimmedText && attachedFiles.length === 0) return;
 
-    const trimmed = inputText.trim();
-    // Parse links
-    const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(trimmed);
-    const type = isUrl ? 'link' : 'text';
-
-    const id = `${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+    const newItemsList: DumpItem[] = [];
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(
       now.getHours()
     )}:${pad(now.getMinutes())}`;
 
-    const newItem: DumpItem = {
-      id,
-      type,
-      label,
-      value: trimmed,
-      syncState: 'pending',
-      folderId: activeFolderId || undefined,
-    };
+    // 1. Process text input if present
+    if (trimmedText) {
+      const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(trimmedText);
+      const type = isUrl ? 'link' : 'text';
+      const textId = `${Date.now()}_text_${Math.random().toString(36).substring(2, 5)}`;
+      
+      const newTextItem: DumpItem = {
+        id: textId,
+        type,
+        label,
+        value: trimmedText,
+        syncState: 'pending',
+        folderId: activeFolderId || undefined,
+      };
 
-    const currentItems = await getItems();
-    await saveItems([newItem, ...currentItems]);
-    setItems([newItem, ...currentItems]);
-    setInputText('');
+      await addItem(newTextItem);
+      newItemsList.push(newTextItem);
+      setInputText('');
+    }
 
-    await enqueueSyncTask('UPLOAD', newItem.id, newItem.type);
-    processSyncQueue();
+    // 2. Process attached files if present
+    if (attachedFiles.length > 0) {
+      for (let i = 0; i < attachedFiles.length; i++) {
+        const file = attachedFiles[i];
+        const fileId = `${Date.now()}_file_${i}_${Math.random().toString(36).substring(2, 5)}`;
+        const isImage = file.type.startsWith('image/');
+        const type = isImage ? 'photo' : 'file';
+
+        let value = '';
+        if (isImage) {
+          value = file.name;
+        } else {
+          value = JSON.stringify({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type,
+          });
+        }
+
+        const newFileItem: DumpItem = {
+          id: fileId,
+          type,
+          label,
+          value,
+          syncState: 'pending',
+          folderId: activeFolderId || undefined,
+        };
+
+        await saveItemFile(fileId, file);
+        await addItem(newFileItem);
+        newItemsList.push(newFileItem);
+      }
+      setAttachedFiles([]);
+    }
+
+
+    // Enqueue sync tasks for all new items
+    if (newItemsList.length > 0) {
+      const firstItem = newItemsList[0];
+      if (firstItem.type !== 'folder') {
+        setActiveTab(firstItem.type);
+      }
+
+      await enqueueSyncTasks(
+        newItemsList.map((item) => ({
+          action: 'UPLOAD',
+          itemId: item.id,
+          itemType: item.type,
+        }))
+      );
+      processSyncQueue();
+    }
   };
 
-  const handleFileDrop = async (files: FileList) => {
+  const handleDirectAddFiles = async (files: FileList | File[]) => {
     if (files.length === 0) return;
 
-    const currentItems = await getItems();
     const newItemsList: DumpItem[] = [];
-
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(
@@ -775,7 +792,7 @@ export default function App() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const id = `${Date.now()}_${i}`;
+      const fileId = `${Date.now()}_file_${i}_${Math.random().toString(36).substring(2, 5)}`;
       const isImage = file.type.startsWith('image/');
       const type = isImage ? 'photo' : 'file';
 
@@ -790,8 +807,8 @@ export default function App() {
         });
       }
 
-      const newItem: DumpItem = {
-        id,
+      const newFileItem: DumpItem = {
+        id: fileId,
         type,
         label,
         value,
@@ -799,23 +816,45 @@ export default function App() {
         folderId: activeFolderId || undefined,
       };
 
-      // Save binary blob to IndexedDB
-      await saveItemFile(id, file);
-      await addItem(newItem);
-      newItemsList.push(newItem);
+      await saveItemFile(fileId, file);
+      await addItem(newFileItem);
+      newItemsList.push(newFileItem);
     }
 
-    const merged = [...newItemsList, ...currentItems];
-    setItems(merged);
+    if (newItemsList.length > 0) {
+      const firstItem = newItemsList[0];
+      if (firstItem.type !== 'folder') {
+        setActiveTab(firstItem.type);
+      }
 
-    await enqueueSyncTasks(
-      newItemsList.map((item) => ({
-        action: 'UPLOAD',
-        itemId: item.id,
-        itemType: item.type,
-      }))
-    );
-    processSyncQueue();
+      await enqueueSyncTasks(
+        newItemsList.map((item) => ({
+          action: 'UPLOAD',
+          itemId: item.id,
+          itemType: item.type,
+        }))
+      );
+      processSyncQueue();
+    }
+  };
+
+  const handleInputPaste = (e: React.ClipboardEvent) => {
+    const clipboardItems = e.clipboardData?.items;
+    if (!clipboardItems) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < clipboardItems.length; i++) {
+      const item = clipboardItems[i];
+      if (item.kind === 'file') {
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+
+    if (files.length > 0) {
+      e.preventDefault();
+      setAttachedFiles((prev) => [...prev, ...files]);
+    }
   };
 
   const handleCreateFolder = () => {
@@ -1051,7 +1090,148 @@ export default function App() {
   const folders = filteredList.filter((item) => item.type === 'folder');
   const normalItems = filteredList.filter((item) => item.type !== 'folder');
 
-  // Keyboard shortcut Ctrl+A and Delete/Del listener
+  const handleCopySelected = () => {
+    if (selectedIds.size === 0) return;
+    setClipboard({
+      type: 'copy',
+      itemIds: new Set(selectedIds),
+    });
+  };
+
+  const handleCutSelected = () => {
+    if (selectedIds.size === 0) return;
+    setClipboard({
+      type: 'cut',
+      itemIds: new Set(selectedIds),
+    });
+  };
+
+  const handlePasteSelected = async () => {
+    if (!clipboard || clipboard.itemIds.size === 0) return;
+
+    const allItems = await getItems();
+    const itemsToProcess = allItems.filter(item => clipboard.itemIds.has(item.id));
+    
+    const hasSelectedAncestor = (item: DumpItem, selectedSet: Set<string>, list: DumpItem[]): boolean => {
+      let current = item;
+      while (current.folderId) {
+        const parentId = current.folderId;
+        if (selectedSet.has(parentId)) return true;
+        const parent = list.find(x => x.id === parentId);
+        if (!parent) break;
+        current = parent;
+      }
+      return false;
+    };
+
+    const topLevelItems = itemsToProcess.filter(
+      (item) => !hasSelectedAncestor(item, clipboard.itemIds, allItems)
+    );
+
+    if (clipboard.type === 'cut') {
+      const updatedList = allItems.map(item => {
+        const isTopLevelCut = topLevelItems.some(x => x.id === item.id);
+        if (isTopLevelCut) {
+          return {
+            ...item,
+            folderId: activeFolderId || undefined,
+            syncState: 'pending' as const,
+          };
+        }
+        return item;
+      });
+
+      await saveItems(updatedList);
+      setItems(updatedList);
+
+      for (const item of topLevelItems) {
+        await enqueueSyncTask('UPDATE', item.id, item.type);
+      }
+      processSyncQueue();
+      setClipboard(null);
+      setSelectedIds(new Set());
+    } else if (clipboard.type === 'copy') {
+      const copiedIds: string[] = [];
+
+      const copyItemTree = async (
+        item: DumpItem,
+        newParentId: string | undefined,
+        list: DumpItem[]
+      ) => {
+        const newId = item.type === 'folder' 
+          ? `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+          : `${Date.now()}_${item.type}_${Math.random().toString(36).substring(2, 7)}`;
+
+        if (item.type === 'photo' || item.type === 'file') {
+          const blob = await getItemFile(item.id);
+          if (blob) {
+            await saveItemFile(newId, blob);
+          }
+        }
+
+        let newLabel = item.label;
+        let newValue = item.value;
+        if (item.folderId === newParentId) {
+          if (item.type === 'folder') {
+            try {
+              const parsed = JSON.parse(item.value);
+              parsed.name = `Copy of ${parsed.name}`;
+              newLabel = parsed.name;
+              newValue = JSON.stringify(parsed);
+            } catch {}
+          } else {
+            newLabel = `Copy of ${item.label}`;
+          }
+        }
+
+        const copiedItem: DumpItem = {
+          ...item,
+          id: newId,
+          label: newLabel,
+          value: newValue,
+          folderId: newParentId,
+          driveFileId: undefined,
+          driveMetaFileId: undefined,
+          syncState: 'pending',
+        };
+
+        await addItem(copiedItem);
+        copiedIds.push(newId);
+
+        if (item.type === 'folder') {
+          const children = list.filter(x => x.folderId === item.id);
+          for (const child of children) {
+            await copyItemTree(child, newId, list);
+          }
+        }
+      };
+
+      for (const item of topLevelItems) {
+        await copyItemTree(item, activeFolderId || undefined, allItems);
+      }
+
+      const freshItems = await getItems();
+      setItems(freshItems);
+
+      if (copiedIds.length > 0) {
+        const tasks = copiedIds.map(id => {
+          const item = freshItems.find(x => x.id === id);
+          return {
+            action: 'UPLOAD' as const,
+            itemId: id,
+            itemType: item ? item.type : 'text' as any,
+          };
+        });
+        await enqueueSyncTasks(tasks);
+        processSyncQueue();
+      }
+
+      setClipboard(null);
+      setSelectedIds(new Set());
+    }
+  };
+
+  // Keyboard shortcut Ctrl+A and Delete/Del listener, and copy/cut/paste key handlers
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isInputActive = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '');
@@ -1064,24 +1244,34 @@ export default function App() {
       } else if ((e.key === 'Delete' || e.key === 'Del') && selectedIds.size > 0) {
         e.preventDefault();
         handleDeleteSelected();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleCopySelected();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'x') {
+        e.preventDefault();
+        handleCutSelected();
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        handlePasteSelected();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredList, selectedIds]);
+  }, [filteredList, selectedIds, clipboard, activeFolderId, items]);
 
   const renderCard = (item: DumpItem) => {
     const isSyncing = item.syncState === 'syncing';
     const progress = uploadProgress[item.id] || 0;
     const isSelected = selectedIds.has(item.id);
+    const isCut = clipboard?.type === 'cut' && clipboard.itemIds.has(item.id);
 
     return (
       <div
         key={item.id}
         data-id={item.id}
-        className={`item-card relative animate-in fade-in duration-200 select-none ${
-          isSelected ? 'bg-primary/5 transition-colors duration-150' : ''
-        }`}
+        className={`item-card relative animate-in fade-in duration-200 select-none transition-all ${
+          isSelected ? 'bg-primary/5' : ''
+        } ${isCut ? 'opacity-40 border-dashed border-primary/50' : ''}`}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1129,6 +1319,17 @@ export default function App() {
             newSelected.add(item.id);
           }
           setSelectedIds(newSelected);
+
+          if (item.type === 'link') {
+            const url = item.value.startsWith('http') ? item.value : `https://${item.value}`;
+            openUrl(url).catch((err) => console.error('Failed to open URL:', err));
+          }
+        }}
+        onDoubleClick={(e) => {
+          if (item.type === 'folder') {
+            e.stopPropagation();
+            setActiveFolderId(item.id);
+          }
         }}
       >
         <TuiContainer
@@ -1150,17 +1351,19 @@ export default function App() {
           <div className="flex flex-col gap-3 h-full justify-between flex-1">
             {/* Content area */}
             {item.type === 'folder' ? (
-              <button
-                onClick={() => setActiveFolderId(item.id)}
+              <div
                 className="flex items-center gap-3 text-left w-full hover:text-primary group"
               >
                 <Folder size={16} className="text-primary fill-primary/10 group-hover:scale-110 transition-transform duration-150" />
                 <span className="font-bold text-sm leading-tight">{getFolderName(item)}</span>
-              </button>
+              </div>
             ) : item.type === 'link' ? (
               <div className="flex flex-col gap-1">
                 <a
                   href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                  }}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline text-sm font-bold flex items-center justify-between gap-1.5 w-full min-w-0"
@@ -1233,7 +1436,7 @@ export default function App() {
         background: '#F4F4F5', // zinc-100
         foreground: '#09090B', // zinc-950
         card: '#F4F4F5',
-        border: '#000000', // high-contrast retro black border
+        border: '#D4D4D8', // zinc-300 border
         muted: '#71717A', // zinc-500
         primary: primaryColor,
         primaryForeground,
@@ -1429,7 +1632,7 @@ export default function App() {
               {activeFolderId && (
                 <div className="mb-3 shrink-0 px-4">
                   <TuiContainer label="Path" noPadding={true}>
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-4 pt-1.3 pb-1.5">
+                    <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-4 pt-2 pb-1.5">
                       <button
                         onClick={() => setActiveFolderId(null)}
                         className="hover:underline cursor-pointer text-primary"
@@ -1533,23 +1736,22 @@ export default function App() {
             </TuiContainer>
           </main>
 
-          {/* --- FOOTER INPUT CONSOLE --- */}
           <footer className="shrink-0 select-none">
             <TuiContainer
               label="Input Console"
-              style={{ width: '100%', height: '110px' }}
-              contentStyle={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+              style={{ width: '100%' }}
+              contentStyle={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
             >
               <div className="flex flex-col gap-3">
-                <form onSubmit={handleSubmitItem} className="flex gap-4 w-full items-center">
+                <form onSubmit={handleSubmitItem} className="flex gap-4 w-full items-end">
                   <input
                     type="file"
                     id="attachment-input"
                     multiple
                     className="hidden"
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       if (e.target.files) {
-                        await handleFileDrop(e.target.files);
+                        handleDirectAddFiles(e.target.files);
                         e.target.value = '';
                       }
                     }}
@@ -1564,20 +1766,64 @@ export default function App() {
                     <Paperclip size={18} />
                     <span>File</span>
                   </TuiButton>
-                  <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Enter link or text content here..."
-                    className="flex-1 border-[1.5px] border-border bg-card px-4 text-xs focus:outline-hidden font-mono min-h-[40px] text-foreground"
-                  />
-                  <TuiButton onPress={handleSubmitItem} className="!w-auto px-6 !min-h-[40px]">
+
+                  {/* Combined Staged File List + Input Wrapper */}
+                  <div className={`flex-1 flex flex-col border-[1.5px] border-border bg-card px-3 gap-3 min-h-[40px] justify-center ${attachedFiles.length > 0 ? 'py-2.25' : 'py-2'}`}>
+                    {/* Attachment Previews */}
+                    {attachedFiles.length > 0 && (
+                      <div className="flex flex-wrap gap-4 border-b border-border/30 pb-3">
+                        {attachedFiles.map((file, index) => {
+                          const isImage = file.type.startsWith('image/');
+                          return (
+                            <div key={index} className="relative border-[1.5px] border-border w-32 h-32 flex items-center justify-center bg-[#18181b] select-none">
+                              {isImage ? (
+                                <ImagePreview file={file} />
+                              ) : (
+                                <div className="flex flex-col items-center gap-1.5 px-2 text-center min-w-0">
+                                  <span className="text-xs text-muted font-bold font-mono">
+                                    [ {file.name.split('.').pop()?.toUpperCase() || 'FILE'} ]
+                                  </span>
+                                  <span className="text-[9px] text-muted/60 truncate max-w-full font-mono">
+                                    {file.name}
+                                  </span>
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                                className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer focus:outline-hidden"
+                                title="Remove Attachment"
+                              >
+                                <X size={24} className="text-white hover:scale-110 transition-transform duration-100" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <textarea
+                      ref={textareaRef}
+                      rows={1}
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={handleTextareaKeyDown}
+                      onPaste={handleInputPaste}
+                      placeholder="Enter link or text content here..."
+                      className="w-full bg-transparent text-xs focus:outline-hidden font-mono text-foreground p-0.5 resize-none overflow-y-hidden"
+                      style={{ height: 'auto', minHeight: '20px' }}
+                    />
+                  </div>
+
+                  <TuiButton onPress={handleSubmitItem} className="!w-auto px-6 !h-10 !min-h-[40px]">
                     <Plus size={15} className="mr-1" />
                     <span>Add</span>
                   </TuiButton>
                 </form>
                 <p className="text-[9px] text-muted text-center leading-normal mt-0.5">
-                  Tip: Drag & Drop files or Paste (Ctrl+V) directly anywhere on the active workspace page to save them!
+                  Tip: Drag & Drop files or Paste (Ctrl+V) directly inside the input console text box to stage attachments!
                 </p>
               </div>
             </TuiContainer>
@@ -1609,7 +1855,7 @@ export default function App() {
       {folderPrompt.visible && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
           <div className="w-full max-w-sm">
-            <TuiContainer label="New Folder">
+            <TuiContainer label="New Folder" disableHover={true}>
               <div className="py-2 flex flex-col gap-4">
                 <p className="text-xs text-muted mb-1 font-mono">Enter folder name:</p>
                 <input
@@ -1776,7 +2022,7 @@ export default function App() {
                 }}
                 className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
               >
-                Cut
+                Move
               </button>
 
               {/* Download option (for photos/files) */}
@@ -1843,7 +2089,7 @@ export default function App() {
       {editPrompt.visible && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
           <div className="w-full max-w-sm">
-            <TuiContainer label={`Edit ${editPrompt.type}`}>
+            <TuiContainer label={`Edit ${editPrompt.type}`} disableHover={true}>
               <div className="py-2 flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] uppercase font-bold text-muted">Label / Date</label>
