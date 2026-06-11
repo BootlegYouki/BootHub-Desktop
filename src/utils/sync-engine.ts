@@ -709,8 +709,12 @@ export const setConflictResolver = (_resolver: (count: number) => Promise<any>) 
 };
 
 export const pullChangesFromDrive = async (): Promise<void> => {
+  updateSyncStatus({ isSyncing: true, error: null });
   const accessToken = await getValidAccessToken();
-  if (!accessToken) return;
+  if (!accessToken) {
+    updateSyncStatus({ isSyncing: false, error: 'Sign-in required to synchronize.' });
+    return;
+  }
 
   try {
     await getOrCreateSyncFolder(accessToken);
@@ -823,8 +827,12 @@ export const pullChangesFromDrive = async (): Promise<void> => {
       await enqueueUnsyncedLocalItems();
       processSyncQueue();
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to pull changes from Google Drive:', err);
+    const details = err.response?.data
+      ? (typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data))
+      : (err.message || String(err));
+    updateSyncStatus({ isSyncing: false, error: 'Sync failed: ' + details });
     throw err;
   }
 };

@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
-use tauri::menu::{Menu, MenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
@@ -154,8 +154,19 @@ pub fn run() {
         .setup(|app| {
             let show_i = MenuItem::with_id(app, "show", "Open BootHub", true, None::<&str>)?;
             let sync_i = MenuItem::with_id(app, "sync", "Sync Now", true, None::<&str>)?;
+            let is_autostart_enabled = app.autolaunch().is_enabled().unwrap_or(false);
+            let autostart_i = CheckMenuItem::with_id(
+                app,
+                "autostart",
+                "Run when my computer starts",
+                true,
+                is_autostart_enabled,
+                None::<&str>,
+            )?;
             let quit_i = MenuItem::with_id(app, "quit", "Close BootHub", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &sync_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_i, &sync_i, &autostart_i, &quit_i])?;
+
+            let autostart_i_clone = autostart_i.clone();
 
             let mut tray_builder = TrayIconBuilder::new().menu(&menu);
 
@@ -169,7 +180,7 @@ pub fn run() {
             }
 
             let _tray = tray_builder
-                .on_menu_event(|app: &tauri::AppHandle, event| match event.id.as_ref() {
+                .on_menu_event(move |app: &tauri::AppHandle, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
                     }
@@ -180,12 +191,28 @@ pub fn run() {
                         }
                     }
                     "sync" => {
-                        let _ = app.emit("tray-sync", ());
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("tray-sync", ());
+                        }
+                    }
+                    "autostart" => {
+                        let current_state = app.autolaunch().is_enabled()
+                            .unwrap_or_else(|_| autostart_i_clone.is_checked().unwrap_or(false));
+                        let new_state = !current_state;
+                        let res = if new_state {
+                            app.autolaunch().enable()
+                        } else {
+                            app.autolaunch().disable()
+                        };
+                        let _ = autostart_i_clone.set_checked(new_state);
+                        if let Err(e) = res {
+                            println!("Failed to set autostart to {}: {:?}", new_state, e);
+                        }
                     }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
-                    if let TrayIconEvent::Click { .. } = event {
+                    if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -194,8 +221,6 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
-
-            let _ = app.handle().autolaunch().enable();
 
             Ok(())
         })
