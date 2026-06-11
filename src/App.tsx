@@ -641,6 +641,20 @@ export default function App() {
     };
   }, []);
 
+  // Listen to Tray Sync trigger from Rust
+  useEffect(() => {
+    const setupTraySyncListener = async () => {
+      const unlisten = await listen('tray-sync', () => {
+        pullChangesFromDrive().catch((err) => console.error(err));
+      });
+      return unlisten;
+    };
+    const unlistenPromise = setupTraySyncListener();
+    return () => {
+      unlistenPromise.then((unlistenFn) => unlistenFn());
+    };
+  }, []);
+
   // Register the sync engine conflict modal trigger
   useEffect(() => {
     setConflictResolver((count) => {

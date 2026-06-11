@@ -56,125 +56,16 @@
             letter-spacing: 0.05em;
         }
 
-        .success-badge {
-            border: 1.5px dashed var(--color-success);
-            background: rgba(34, 197, 94, 0.05);
-            padding: 10px;
-            text-align: center;
-            color: var(--color-success);
-            font-weight: bold;
-            font-size: 13px;
-        }
-
-        .log-section {
-            border: 1.5px solid var(--color-border);
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-
-        .log-item {
-            font-size: 12px;
-            color: var(--color-muted);
-            display: flex;
-            gap: 8px;
-        }
-
-        .log-tag {
-            color: var(--color-primary);
-            flex-shrink: 0;
-        }
-
-        .log-tag.ok {
-            color: var(--color-success);
-        }
-
-        .log-msg {
-            color: var(--color-foreground);
-        }
-
-        .tui-button {
-            border: 1.5px solid var(--color-primary);
-            background: transparent;
-            color: var(--color-foreground);
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: bold;
-            text-align: center;
-            font-size: 13px;
-            padding: 10px;
-            cursor: pointer;
-            width: 100%;
-            outline: none;
-            transition: background-color 120ms ease, color 120ms ease;
-        }
-
-        .tui-button:hover {
-            background: var(--color-primary);
-            color: #000000;
-        }
-
-        .countdown-container {
-            font-size: 11px;
-            color: var(--color-muted);
-            text-align: center;
-            margin-top: -4px;
-        }
-
-        .cursor {
-            display: inline-block;
-            width: 8px;
-            height: 14px;
-            background: var(--color-foreground);
-            animation: blink 1s step-end infinite;
-            vertical-align: middle;
-        }
-
-        @keyframes blink {
-            from, to { background-color: transparent }
-            50% { background-color: var(--color-foreground) }
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="legend">[ Success ]</div>
         
-        <div style="font-size: 13px; line-height: 1.6; text-align: center; padding: 12px 0; color: var(--color-foreground);">
+        <div style="font-size: 13px; line-height: 1.6; text-align: center; padding: 20px 0; color: var(--color-foreground);">
             Google Drive connected successfully!<br>
-            You can now close this window and return to BootHub.
+            You can now close this tab and return to BootHub.
         </div>
-        
-        <div class="countdown-container" id="countdown-text">
-            Auto-closing in 3.0s...
-        </div>
-
-        <button class="tui-button" onclick="window.close()">
-            [ CLOSE WINDOW ]
-        </button>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const countdownText = document.getElementById('countdown-text');
-            const duration = 3000;
-            const startTime = Date.now();
-
-            const interval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const remaining = Math.max(0, duration - elapsed);
-                const remainingSeconds = (remaining / 1000).toFixed(1);
-                
-                countdownText.textContent = `Auto-closing in ${remainingSeconds}s...`;
-
-                if (remaining <= 0) {
-                    clearInterval(interval);
-                    countdownText.textContent = 'Auto-closing...';
-                    window.close();
-                }
-            }, 100);
-        });
-    </script>
 </body>
 </html>

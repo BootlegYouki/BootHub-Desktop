@@ -1,7 +1,10 @@
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
-use tauri::Emitter;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::{Emitter, Manager};
+use tauri_plugin_autostart::ManagerExt;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -103,74 +106,17 @@ fn start_oauth_server(window: tauri::Window) {
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-
-        .countdown-container {
-            font-size: 11px;
-            color: var(--color-muted);
-            text-align: center;
-            margin-top: 4px;
-        }
-
-        .tui-button {
-            border: 1.5px solid var(--color-primary);
-            background: transparent;
-            color: var(--color-foreground);
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: bold;
-            text-align: center;
-            font-size: 13px;
-            padding: 10px;
-            cursor: pointer;
-            width: 100%;
-            outline: none;
-            transition: background-color 120ms ease, color 120ms ease;
-        }
-
-        .tui-button:hover {
-            background: var(--color-primary);
-            color: #000000;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="legend">[ Success ]</div>
         
-        <div style="font-size: 13px; line-height: 1.6; text-align: center; padding: 12px 0; color: var(--color-foreground);">
+        <div style="font-size: 13px; line-height: 1.6; text-align: center; padding: 20px 0; color: var(--color-foreground);">
             Google Drive connected successfully!<br>
-            You can now close this window and return to BootHub.
+            You can now close this tab and return to BootHub.
         </div>
-        
-        <div class="countdown-container" id="countdown-text">
-            Auto-closing in 3.0s...
-        </div>
-
-        <button class="tui-button" onclick="window.close()">
-            [ CLOSE WINDOW ]
-        </button>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const countdownText = document.getElementById('countdown-text');
-            const duration = 3000;
-            const startTime = Date.now();
-
-            const interval = setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const remaining = Math.max(0, duration - elapsed);
-                const remainingSeconds = (remaining / 1000).toFixed(1);
-                
-                countdownText.textContent = `Auto-closing in ${remainingSeconds}s...`;
-
-                if (remaining <= 0) {
-                    clearInterval(interval);
-                    countdownText.textContent = 'Auto-closing...';
-                    window.close();
-                }
-            }, 100);
-        });
-    </script>
 </body>
 </html>"#);
 
@@ -195,9 +141,64 @@ fn start_oauth_server(window: tauri::Window) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
+        .setup(|app| {
+            let show_i = MenuItem::with_id(app, "show", "Open BootHub", true, None::<&str>)?;
+            let sync_i = MenuItem::with_id(app, "sync", "Sync Now", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Close BootHub", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &sync_i, &quit_i])?;
+
+            let mut tray_builder = TrayIconBuilder::new().menu(&menu);
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            } else {
+                let icon_bytes = include_bytes!("../icons/32x32.png");
+                if let Ok(icon) = tauri::image::Image::from_bytes(icon_bytes) {
+                    tray_builder = tray_builder.icon(icon);
+                }
+            }
+
+            let _tray = tray_builder
+                .on_menu_event(|app: &tauri::AppHandle, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "sync" => {
+                        let _ = app.emit("tray-sync", ());
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
+                    if let TrayIconEvent::Click { .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            let _ = app.handle().autolaunch().enable();
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![greet, start_oauth_server])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

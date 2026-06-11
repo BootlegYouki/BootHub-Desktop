@@ -12,11 +12,14 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "BootHub",
         "width": 1280,
         "height": 720,
         "decorations": false,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "maximized": true,
+        "center": true
       }
     ],
     "security": {
