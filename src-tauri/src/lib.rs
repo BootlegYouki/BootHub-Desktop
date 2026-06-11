@@ -141,6 +141,12 @@ fn start_oauth_server(window: tauri::Window) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
@@ -180,39 +186,47 @@ pub fn run() {
             }
 
             let _tray = tray_builder
-                .on_menu_event(move |app: &tauri::AppHandle, event| match event.id.as_ref() {
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                .on_menu_event(
+                    move |app: &tauri::AppHandle, event| match event.id.as_ref() {
+                        "quit" => {
+                            app.exit(0);
                         }
-                    }
-                    "sync" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.emit("tray-sync", ());
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
                         }
-                    }
-                    "autostart" => {
-                        let current_state = app.autolaunch().is_enabled()
-                            .unwrap_or_else(|_| autostart_i_clone.is_checked().unwrap_or(false));
-                        let new_state = !current_state;
-                        let res = if new_state {
-                            app.autolaunch().enable()
-                        } else {
-                            app.autolaunch().disable()
-                        };
-                        let _ = autostart_i_clone.set_checked(new_state);
-                        if let Err(e) = res {
-                            println!("Failed to set autostart to {}: {:?}", new_state, e);
+                        "sync" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.emit("tray-sync", ());
+                            }
                         }
-                    }
-                    _ => {}
-                })
+                        "autostart" => {
+                            let current_state =
+                                app.autolaunch().is_enabled().unwrap_or_else(|_| {
+                                    autostart_i_clone.is_checked().unwrap_or(false)
+                                });
+                            let new_state = !current_state;
+                            let res = if new_state {
+                                app.autolaunch().enable()
+                            } else {
+                                app.autolaunch().disable()
+                            };
+                            let _ = autostart_i_clone.set_checked(new_state);
+                            if let Err(e) = res {
+                                println!("Failed to set autostart to {}: {:?}", new_state, e);
+                            }
+                        }
+                        _ => {}
+                    },
+                )
                 .on_tray_icon_event(|tray: &tauri::tray::TrayIcon, event| {
-                    if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
+                    if let TrayIconEvent::Click {
+                        button: tauri::tray::MouseButton::Left,
+                        ..
+                    } = event
+                    {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();

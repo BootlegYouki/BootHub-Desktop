@@ -23,6 +23,7 @@ import { IconSvg } from './components/IconSvg';
 import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { check } from '@tauri-apps/plugin-updater';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   initiateOAuthFlow,
   exchangeCodeForTokens,
@@ -238,6 +239,16 @@ export default function App() {
       window.removeEventListener('dragstart', handleDragStart);
       window.removeEventListener('dragend', handleDragEnd);
     };
+  }, []);
+
+  // Show window with a slight delay so assets can load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      getCurrentWindow().show().catch((err) => {
+        console.error('Failed to show window:', err);
+      });
+    }, 150); // 150ms delay for assets/DOM to load smoothly
+    return () => clearTimeout(timer);
   }, []);
 
   // Navigation & View State

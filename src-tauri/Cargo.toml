@@ -1,6 +1,6 @@
 [package]
 name = "boothub"
-version = "0.2.2"
+version = "0.2.3"
 description = "A Tauri App"
 authors = ["BootlegYouki"]
 edition = "2021"
@@ -27,6 +27,7 @@ tauri-plugin-updater = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
 
 
 
