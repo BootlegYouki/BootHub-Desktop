@@ -46,54 +46,157 @@ fn start_oauth_server(window: tauri::Window) {
                             }
                         }
 
-                        // Respond with a simple success page
+                        // Respond with a success page matching the app's TUI style
                         let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n\
+                        <!DOCTYPE html>\
                         <html>\
                         <head>\
                             <title>BootHub Authentication</title>\
+                            <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\
+                            <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\
+                            <link href=\"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap\" rel=\"stylesheet\">\
                             <style>\
+                                :root {\
+                                    --color-primary: #a855f7;\
+                                    --color-background: #09090b;\
+                                    --color-card: #18181b;\
+                                    --color-border: #52525b;\
+                                    --color-foreground: #f4f4f5;\
+                                    --color-muted: #71717a;\
+                                    --color-success: #22c55e;\
+                                }\
                                 body {\
-                                    font-family: monospace;\
+                                    background-color: var(--color-background);\
+                                    color: var(--color-foreground);\
+                                    font-family: 'JetBrains Mono', monospace;\
                                     display: flex;\
-                                    flex-direction: column;\
                                     align-items: center;\
                                     justify-content: center;\
                                     height: 100vh;\
-                                    background: #09090b;\
-                                    color: #a1a1aa;\
                                     margin: 0;\
+                                    overflow: hidden;\
+                                    background-size: 24px 24px;\
+                                    background-image: \
+                                        linear-gradient(to right, rgba(168, 85, 247, 0.04) 1px, transparent 1px), \
+                                        linear-gradient(to bottom, rgba(168, 85, 247, 0.04) 1px, transparent 1px);\
                                 }\
                                 .container {\
-                                    border: 1.5px solid #a855f7;\
-                                    padding: 30px;\
-                                    background: #18181b;\
+                                    width: 440px;\
+                                    position: relative;\
+                                    border: 1.5px solid var(--color-primary);\
+                                    background-color: var(--color-card);\
+                                    padding: 24px;\
+                                    display: flex;\
+                                    flex-direction: column;\
+                                    gap: 16px;\
+                                    box-shadow: 6px 6px 0px rgba(168, 85, 247, 0.1);\
+                                }\
+                                .legend {\
+                                    position: absolute;\
+                                    top: -10px;\
+                                    left: 16px;\
+                                    padding: 0 8px;\
+                                    background-color: var(--color-card);\
+                                    font-weight: bold;\
+                                    font-size: 12px;\
+                                    color: var(--color-primary);\
+                                    text-transform: uppercase;\
+                                    letter-spacing: 0.05em;\
+                                }\
+                                .success-badge {\
+                                    border: 1.5px dashed var(--color-success);\
+                                    background: rgba(34, 197, 94, 0.05);\
+                                    padding: 10px;\
                                     text-align: center;\
-                                    box-shadow: 4px 4px 0px #a855f7;\
-                                }\
-                                h1 {\
-                                    color: #a855f7;\
-                                    margin-top: 0;\
+                                    color: var(--color-success);\
                                     font-weight: bold;\
-                                    letter-spacing: 1px;\
+                                    font-size: 13px;\
                                 }\
-                                p {\
-                                    margin-bottom: 20px;\
-                                    font-size: 14px;\
+                                .log-section {\
+                                    border: 1.5px solid var(--color-border);\
+                                    padding: 12px;\
+                                    display: flex;\
+                                    flex-direction: column;\
+                                    gap: 6px;\
                                 }\
-                                .status {\
-                                    color: #22c55e;\
+                                .log-item {\
+                                    font-size: 12px;\
+                                    color: var(--color-muted);\
+                                    display: flex;\
+                                    gap: 8px;\
+                                }\
+                                .log-tag {\
+                                    color: var(--color-primary);\
+                                    flex-shrink: 0;\
+                                }\
+                                .log-msg {\
+                                    color: var(--color-foreground);\
+                                }\
+                                .tui-button {\
+                                    border: 1.5px solid var(--color-primary);\
+                                    background: transparent;\
+                                    color: var(--color-foreground);\
+                                    font-family: 'JetBrains Mono', monospace;\
                                     font-weight: bold;\
+                                    text-align: center;\
+                                    font-size: 13px;\
+                                    padding: 10px;\
+                                    cursor: pointer;\
+                                    width: 100%;\
+                                    outline: none;\
+                                    transition: background-color 120ms ease, color 120ms ease;\
+                                }\
+                                .tui-button:hover {\
+                                    background: var(--color-primary);\
+                                    color: #000000;\
+                                }\
+                                .cursor {\
+                                    display: inline-block;\
+                                    width: 8px;\
+                                    height: 14px;\
+                                    background: var(--color-foreground);\
+                                    animation: blink 1s step-end infinite;\
+                                    vertical-align: middle;\
+                                }\
+                                @keyframes blink {\
+                                    from, to { background-color: transparent }\
+                                    50% { background-color: var(--color-foreground) }\
                                 }\
                             </style>\
                         </head>\
                         <body>\
                             <div class=\"container\">\
-                                <h1>BOOTLEG YOUIKI / BOOTHUB</h1>\
-                                <p class=\"status\">[ AUTHENTICATION SUCCESSFUL ]</p>\
-                                <p>You have successfully logged in to Google Drive.</p>\
-                                <p>You can close this tab and return to the application.</p>\
+                                <div class=\"legend\">[ G-Drive Auth v2.0 ]</div>\
+                                <div class=\"success-badge\">\
+                                    STATUS: AUTHENTICATION_SUCCESS\
+                                </div>\
+                                <div class=\"log-section\">\
+                                    <div class=\"log-item\">\
+                                        <span class=\"log-tag\">[ok]</span>\
+                                        <span class=\"log-msg\">TCP port 14200 handshaking...</span>\
+                                    </div>\
+                                    <div class=\"log-item\">\
+                                        <span class=\"log-tag\">[ok]</span>\
+                                        <span class=\"log-msg\">OAuth token code captured</span>\
+                                    </div>\
+                                    <div class=\"log-item\">\
+                                        <span class=\"log-tag\">[ok]</span>\
+                                        <span class=\"log-msg\">Session synchronized locally</span>\
+                                    </div>\
+                                    <div class=\"log-item\">\
+                                        <span class=\"log-tag\">[sys]</span>\
+                                        <span class=\"log-msg\" style=\"color: var(--color-muted);\">Ready to return to BootHub.<span class=\"cursor\"></span></span>\
+                                    </div>\
+                                </div>\
+                                <button class=\"tui-button\" onclick=\"window.close()\">\
+                                    [ CLOSE WINDOW ]\
+                                </button>\
                             </div>\
-                            <script>window.close();</script>\
+                            <script>\
+                                setTimeout(() => {\
+                                    window.close();\
+                                }, 3000);\
+                            </script>\
                         </body>\
                         </html>";
 

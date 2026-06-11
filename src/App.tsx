@@ -338,7 +338,7 @@ export default function App() {
     title: '',
     message: '',
     type: 'alert',
-    onConfirm: () => {},
+    onConfirm: () => { },
   });
 
   const showAlert = (title: string, message: string, onConfirm?: () => void) => {
@@ -497,7 +497,7 @@ export default function App() {
         // Load theme preferences
         const savedMode = await getSetting<'dark' | 'light'>('theme_mode');
         if (savedMode) setThemeMode(savedMode);
-        
+
         const savedAccent = await getSetting<AccentTheme>('accent_theme');
         if (savedAccent) setAccentTheme(savedAccent);
       } catch (err) {
@@ -507,7 +507,7 @@ export default function App() {
       }
     };
     loadData();
-    
+
     const runUpdater = async () => {
       try {
         const update = await check();
@@ -726,7 +726,7 @@ export default function App() {
       const isUrl = /^https?:\/\//i.test(trimmedText) || /^(https?:\/\/)?((?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,6}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|localhost)(:\d+)?(\/.*)?$/i.test(trimmedText);
       const type = isUrl ? 'link' : 'text';
       const textId = `${Date.now()}_text_${Math.random().toString(36).substring(2, 5)}`;
-      
+
       const newTextItem: DumpItem = {
         id: textId,
         type,
@@ -1041,7 +1041,7 @@ export default function App() {
         try {
           const parsed = JSON.parse(item.value);
           name = parsed.name || item.value;
-        } catch (_) {}
+        } catch (_) { }
         await navigator.clipboard.writeText(name);
       }
     } catch (err) {
@@ -1142,7 +1142,7 @@ export default function App() {
 
     const allItems = await getItems();
     const itemsToProcess = allItems.filter(item => clipboard.itemIds.has(item.id));
-    
+
     const hasSelectedAncestor = (item: DumpItem, selectedSet: Set<string>, list: DumpItem[]): boolean => {
       let current = item;
       while (current.folderId) {
@@ -1189,7 +1189,7 @@ export default function App() {
         newParentId: string | undefined,
         list: DumpItem[]
       ) => {
-        const newId = item.type === 'folder' 
+        const newId = item.type === 'folder'
           ? `folder_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
           : `${Date.now()}_${item.type}_${Math.random().toString(36).substring(2, 7)}`;
 
@@ -1209,7 +1209,7 @@ export default function App() {
               parsed.name = `Copy of ${parsed.name}`;
               newLabel = parsed.name;
               newValue = JSON.stringify(parsed);
-            } catch {}
+            } catch { }
           } else {
             newLabel = `Copy of ${item.label}`;
           }
@@ -1327,9 +1327,8 @@ export default function App() {
       <div
         key={item.id}
         data-id={item.id}
-        className={`item-card relative animate-in fade-in duration-200 select-none transition-all ${
-          isSelected ? 'bg-primary/5' : ''
-        } ${isCut ? 'opacity-40 border-dashed border-primary/50' : ''}`}
+        className={`item-card relative animate-in fade-in duration-200 select-none transition-all ${isSelected ? 'bg-primary/5' : ''
+          } ${isCut ? 'opacity-40 border-dashed border-primary/50' : ''}`}
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1364,7 +1363,7 @@ export default function App() {
             const currentIdx = listIds.indexOf(item.id);
             const lastSelectedId = Array.from(selectedIds).pop();
             const lastIdx = lastSelectedId ? listIds.indexOf(lastSelectedId) : -1;
-            
+
             if (lastIdx !== -1) {
               const start = Math.min(lastIdx, currentIdx);
               const end = Math.max(lastIdx, currentIdx);
@@ -1405,11 +1404,10 @@ export default function App() {
       >
         {item.type === 'photo' ? (
           <div
-            className={`w-full h-full relative border-[1.5px] bg-card transition-all ${
-              isSelected
+            className={`w-full h-full relative border-[1.5px] bg-card transition-all ${isSelected
                 ? 'border-primary shadow-[0_0_8px_rgba(168,85,247,0.3)]'
                 : 'border-border hover:border-foreground'
-            }`}
+              }`}
             title="Double click to view full preview"
           >
             {/* Sync Progress Bar */}
@@ -1507,23 +1505,23 @@ export default function App() {
 
   const themeColors = isDark
     ? {
-        background: '#18181B', // zinc-900
-        foreground: '#FAFAFA',
-        card: '#18181B',
-        border: '#52525B', // zinc-600 (lighter, matches mobile contrast)
-        muted: '#A1A1AA', // zinc-400
-        primary: primaryColor,
-        primaryForeground,
-      }
+      background: '#18181B', // zinc-900
+      foreground: '#FAFAFA',
+      card: '#18181B',
+      border: '#52525B', // zinc-600 (lighter, matches mobile contrast)
+      muted: '#A1A1AA', // zinc-400
+      primary: primaryColor,
+      primaryForeground,
+    }
     : {
-        background: '#F4F4F5', // zinc-100
-        foreground: '#09090B', // zinc-950
-        card: '#F4F4F5',
-        border: '#D4D4D8', // zinc-300 border
-        muted: '#71717A', // zinc-500
-        primary: primaryColor,
-        primaryForeground,
-      };
+      background: '#F4F4F5', // zinc-100
+      foreground: '#09090B', // zinc-950
+      card: '#F4F4F5',
+      border: '#D4D4D8', // zinc-300 border
+      muted: '#71717A', // zinc-500
+      primary: primaryColor,
+      primaryForeground,
+    };
 
   const rootStyles = {
     '--color-background': themeColors.background,
@@ -1543,670 +1541,669 @@ export default function App() {
     >
       <TitleBar title="BootHub" />
       <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden min-h-0">
-      {/* --- TOP NAV PANEL (covers the whole row) --- */}
-      <nav className="shrink-0 select-none">
-        <TuiContainer label="Nav" style={{ width: '100%' }}>
-          <div className="flex items-center justify-between gap-6 py-1 select-none">
-            {/* Logo / Brand & Theme Toggle */}
-            <div className="flex items-center gap-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <IconSvg className="w-8 h-8 text-primary shrink-0" />
-                <div>
-                  <h1 className="text-sm md:text-base font-bold tracking-widest text-primary leading-none">BootHub</h1>
-                  <p className="text-[10px] text-muted leading-none mt-1">by BootlegYouki</p>
+        {/* --- TOP NAV PANEL (covers the whole row) --- */}
+        <nav className="shrink-0 select-none">
+          <TuiContainer label="Nav" style={{ width: '100%' }}>
+            <div className="flex items-center justify-between gap-6 py-1 select-none">
+              {/* Logo / Brand & Theme Toggle */}
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <IconSvg className="w-8 h-8 text-primary shrink-0" />
+                  <div>
+                    <h1 className="text-sm md:text-base font-bold tracking-widest text-primary leading-none">BootHub</h1>
+                    <p className="text-[10px] text-muted leading-none mt-1">by BootlegYouki</p>
+                  </div>
                 </div>
-              </div>
-              <button
-                onClick={() => handleSetThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-                className="w-9 h-9 flex items-center justify-center border-[1.5px] border-border hover:bg-primary/10 active:scale-95 cursor-pointer select-none shrink-0"
-                title="Toggle Theme Mode"
-              >
-                {themeMode === 'dark' ? <Sun size={18} className="text-primary" /> : <Moon size={18} className="text-primary" />}
-              </button>
-            </div>
-
-            {/* Search and New Folder */}
-            <div className="flex-1 max-w-xl flex gap-4 items-center">
-              <div className="flex-1 flex items-center border-[1.5px] border-border px-3 bg-card gap-2 h-9">
-                <Search size={14} className="text-muted" />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab}s...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-xs py-1 focus:outline-hidden font-mono text-foreground"
-                />
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="cursor-pointer">
-                    <X size={12} className="text-muted hover:text-foreground" />
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={handleCreateFolder}
-                className="border-[1.5px] border-primary text-primary px-4 h-9 flex items-center gap-2 hover:bg-primary/20 cursor-pointer text-xs font-bold active:scale-95 shrink-0"
-              >
-                <FolderPlus size={14} />
-                <span>New Folder</span>
-              </button>
-            </div>
-          </div>
-        </TuiContainer>
-      </nav>
-
-      {/* --- LOWER CONTAINER (SIDEBAR + CONTENT STACK) --- */}
-      <div className="flex-1 flex gap-4 min-h-0">
-        {/* --- SIDEBAR --- */}
-        <aside className="w-64 shrink-0 flex flex-col gap-4 min-h-0 select-none">
-          {/* NAVIGATION TABS / LIBRARY */}
-          <TuiContainer
-            label="Library"
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-            contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}
-          >
-            {(['link', 'text', 'photo', 'file'] as TabType[]).map((tab) => {
-              const isActive = activeTab === tab;
-              const iconMap = {
-                link: <Link2 size={16} />,
-                text: <FileText size={16} />,
-                photo: <ImageIcon size={16} />,
-                file: <Paperclip size={16} />,
-              };
-              return (
                 <button
-                  key={tab}
-                  onClick={() => {
-                    setActiveTab(tab);
-                    setActiveFolderId(null);
-                  }}
-                  className={`w-full border-[1.5px] py-3 px-4 flex items-center gap-3 font-bold cursor-pointer text-xs select-none shrink-0 ${
-                    isActive
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-border text-foreground hover:bg-primary/10 hover:border-primary'
-                  }`}
+                  onClick={() => handleSetThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+                  className="w-9 h-9 flex items-center justify-center border-[1.5px] border-border hover:bg-primary/10 active:scale-95 cursor-pointer select-none shrink-0"
+                  title="Toggle Theme Mode"
                 >
-                  {iconMap[tab]}
-                  <span className="capitalize">{tab}s</span>
+                  {themeMode === 'dark' ? <Sun size={18} className="text-primary" /> : <Moon size={18} className="text-primary" />}
                 </button>
-              );
-            })}
-          </TuiContainer>
+              </div>
 
-          {/* CLOUD STATUS */}
-          <div className="shrink-0">
-            <TuiContainer
-              label="Cloud Status"
-              noPadding={false}
-              style={{ height: '145px' }}
-              contentStyle={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
-            >
-              {isSignedIn ? (
-                <div className="flex flex-col gap-2 py-0.5">
-                  <div className="flex items-center gap-2">
-                    {userInfo?.picture ? (
-                      <img
-                        src={userInfo.picture}
-                        alt="avatar"
-                        className="w-7 h-7 border-[1.5px] border-primary"
-                      />
-                    ) : (
-                      <div className="w-7 h-7 border-[1.5px] border-primary flex items-center justify-center font-bold text-xs text-primary bg-card">
-                        {userInfo?.name?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-sm truncate leading-tight">
-                        {userInfo?.name || 'Google User'}
-                      </h4>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <TuiButton
-                      onPress={handleManualSync}
-                      variant="accent"
-                      disabled={syncStatus.isSyncing}
-                      className="w-full !min-h-[32px] !py-1 text-xs"
-                    >
-                      {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
-                    </TuiButton>
-                    <TuiButton
-                      onPress={handleDisconnect}
-                      variant="destructive"
-                      disabled={syncStatus.isSyncing || isAuthLoading}
-                      className="w-full !min-h-[32px] !py-1 text-xs"
-                    >
-                      Disconnect
-                    </TuiButton>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col justify-between h-full py-1">
-                  <div className="flex-1 flex items-center justify-center px-2">
-                    <p className="text-[11px] text-muted leading-normal text-center">
-                      Offline. Sign-in to sync dumps.
-                    </p>
-                  </div>
-                  <TuiButton
-                    onPress={handleConnect}
-                    loading={isAuthLoading}
-                    variant="outline"
-                    className="w-full !min-h-[32px] !py-1 text-xs mt-auto"
-                  >
-                    Connect Drive
-                  </TuiButton>
-                </div>
-              )}
-            </TuiContainer>
-          </div>
-        </aside>
-
-        {/* --- RIGHT CONTENT STACK (MAIN + FOOTER) --- */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
-          {/* MAIN WORKSPACE */}
-          <main className="flex-1 min-h-0 min-w-0 flex flex-col">
-            <TuiContainer
-              label="Main"
-              accentBorder={dragActive}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}
-              contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, padding: '12px' }}
-            >
-              {/* WORKSPACE CONTENT CARD ENVELOPE / DRAG & DROP ZONE */}
-              <div
-                onDragEnter={handleDragEnter}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onMouseDown={(e) => {
-                  if (e.button !== 0) return;
-                  const target = e.target as HTMLElement;
-                  if (target.closest('.item-card') || target.closest('button') || target.closest('input') || target.closest('textarea')) {
-                    return;
-                  }
-                  if (!e.ctrlKey && !e.shiftKey) {
-                    setSelectedIds(new Set());
-                  }
-                  setDragBox({
-                    active: true,
-                    startX: e.clientX,
-                    startY: e.clientY,
-                    currentX: e.clientX,
-                    currentY: e.clientY,
-                  });
-                }}
-                onMouseMove={(e) => {
-                  if (!dragBox.active) return;
-                  const currentX = e.clientX;
-                  const currentY = e.clientY;
-                  setDragBox(prev => ({ ...prev, currentX, currentY }));
-
-                  const left = Math.min(dragBox.startX, currentX);
-                  const top = Math.min(dragBox.startY, currentY);
-                  const right = Math.max(dragBox.startX, currentX);
-                  const bottom = Math.max(dragBox.startY, currentY);
-
-                  const cardElements = document.querySelectorAll('.item-card');
-                  const newSelected = new Set<string>();
-
-                  cardElements.forEach(el => {
-                    const rect = el.getBoundingClientRect();
-                    const id = el.getAttribute('data-id');
-                    if (!id) return;
-                    const intersect = !(
-                      rect.right < left ||
-                      rect.left > right ||
-                      rect.bottom < top ||
-                      rect.top > bottom
-                    );
-                    if (intersect) {
-                      newSelected.add(id);
-                    }
-                  });
-                  setSelectedIds(newSelected);
-                }}
-                onMouseUp={() => {
-                  setDragBox(prev => ({ ...prev, active: false }));
-                }}
-                className="flex-1 flex flex-col p-4 min-h-0 min-w-0 overflow-y-auto"
-              >
-                {/* BREADCRUMB */}
-                {activeFolderId && (
-                  <div className="mb-4 shrink-0">
-                    <TuiContainer label="Path" noPadding={true}>
-                      <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-[11px]">
-                        <button
-                          onClick={() => setActiveFolderId(null)}
-                          className="hover:underline cursor-pointer text-primary"
-                        >
-                          Root
-                        </button>
-                        <span>&gt;</span>
-                        <span className="text-foreground">
-                          {(() => {
-                            const f = items.find((x) => x.id === activeFolderId);
-                            return f ? getFolderName(f) : 'Folder';
-                          })()}
-                        </span>
-                      </div>
-                    </TuiContainer>
-                  </div>
-                )}
-                <div className="flex-1 min-h-0">
-                  {filteredList.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-muted text-sm select-none">
-                      No {activeTab}s dumped yet.
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-8">
-                      {/* Folders Section */}
-                      {folders.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {folders.map(renderCard)}
-                        </div>
-                      )}
-
-                      {/* Items Section */}
-                      {normalItems.length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {normalItems.map(renderCard)}
-                        </div>
-                      )}
-                    </div>
+              {/* Search and New Folder */}
+              <div className="flex-1 max-w-xl flex gap-4 items-center">
+                <div className="flex-1 flex items-center border-[1.5px] border-border px-3 bg-card gap-2 h-9">
+                  <Search size={14} className="text-muted" />
+                  <input
+                    type="text"
+                    placeholder={`Search ${activeTab}s...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-transparent text-xs py-1 focus:outline-hidden font-mono text-foreground"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="cursor-pointer">
+                      <X size={12} className="text-muted hover:text-foreground" />
+                    </button>
                   )}
                 </div>
+                <button
+                  onClick={handleCreateFolder}
+                  className="border-[1.5px] border-primary text-primary px-4 h-9 flex items-center gap-2 hover:bg-primary/20 cursor-pointer text-xs font-bold active:scale-95 shrink-0"
+                >
+                  <FolderPlus size={14} />
+                  <span>New Folder</span>
+                </button>
               </div>
-            </TuiContainer>
-          </main>
+            </div>
+          </TuiContainer>
+        </nav>
 
-          <footer className="shrink-0 select-none">
+        {/* --- LOWER CONTAINER (SIDEBAR + CONTENT STACK) --- */}
+        <div className="flex-1 flex gap-4 min-h-0">
+          {/* --- SIDEBAR --- */}
+          <aside className="w-64 shrink-0 flex flex-col gap-4 min-h-0 select-none">
+            {/* NAVIGATION TABS / LIBRARY */}
             <TuiContainer
-              label="Input Console"
-              style={{ width: '100%' }}
-              contentStyle={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+              label="Library"
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+              contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}
             >
-              <div className="flex flex-col gap-3">
-                <form onSubmit={handleSubmitItem} className="flex gap-4 w-full items-end">
+              {(['link', 'text', 'photo', 'file'] as TabType[]).map((tab) => {
+                const isActive = activeTab === tab;
+                const iconMap = {
+                  link: <Link2 size={16} />,
+                  text: <FileText size={16} />,
+                  photo: <ImageIcon size={16} />,
+                  file: <Paperclip size={16} />,
+                };
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      setActiveFolderId(null);
+                    }}
+                    className={`w-full border-[1.5px] py-3 px-4 flex items-center gap-3 font-bold cursor-pointer text-xs select-none shrink-0 ${isActive
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-border text-foreground hover:bg-primary/10 hover:border-primary'
+                      }`}
+                  >
+                    {iconMap[tab]}
+                    <span className="capitalize">{tab}s</span>
+                  </button>
+                );
+              })}
+            </TuiContainer>
+
+            {/* CLOUD STATUS */}
+            <div className="shrink-0">
+              <TuiContainer
+                label="Cloud Status"
+                noPadding={false}
+                style={{ height: '145px' }}
+                contentStyle={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+              >
+                {isSignedIn ? (
+                  <div className="flex flex-col gap-2 py-0.5">
+                    <div className="flex items-center gap-2">
+                      {userInfo?.picture ? (
+                        <img
+                          src={userInfo.picture}
+                          alt="avatar"
+                          className="w-7 h-7 border-[1.5px] border-primary"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 border-[1.5px] border-primary flex items-center justify-center font-bold text-xs text-primary bg-card">
+                          {userInfo?.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-sm truncate leading-tight">
+                          {userInfo?.name || 'Google User'}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <TuiButton
+                        onPress={handleManualSync}
+                        variant="accent"
+                        disabled={syncStatus.isSyncing}
+                        className="w-full !min-h-[32px] !py-1 text-xs"
+                      >
+                        {syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}
+                      </TuiButton>
+                      <TuiButton
+                        onPress={handleDisconnect}
+                        variant="destructive"
+                        disabled={syncStatus.isSyncing || isAuthLoading}
+                        className="w-full !min-h-[32px] !py-1 text-xs"
+                      >
+                        Disconnect
+                      </TuiButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col justify-between h-full py-1">
+                    <div className="flex-1 flex items-center justify-center px-2">
+                      <p className="text-[11px] text-muted leading-normal text-center">
+                        Offline. Sign-in to sync dumps.
+                      </p>
+                    </div>
+                    <TuiButton
+                      onPress={handleConnect}
+                      loading={isAuthLoading}
+                      variant="outline"
+                      className="w-full !min-h-[32px] !py-1 text-xs mt-auto"
+                    >
+                      Connect Drive
+                    </TuiButton>
+                  </div>
+                )}
+              </TuiContainer>
+            </div>
+          </aside>
+
+          {/* --- RIGHT CONTENT STACK (MAIN + FOOTER) --- */}
+          <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
+            {/* MAIN WORKSPACE */}
+            <main className="flex-1 min-h-0 min-w-0 flex flex-col">
+              <TuiContainer
+                label="Main"
+                accentBorder={dragActive}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}
+                contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, padding: '12px' }}
+              >
+                {/* WORKSPACE CONTENT CARD ENVELOPE / DRAG & DROP ZONE */}
+                <div
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onMouseDown={(e) => {
+                    if (e.button !== 0) return;
+                    const target = e.target as HTMLElement;
+                    if (target.closest('.item-card') || target.closest('button') || target.closest('input') || target.closest('textarea')) {
+                      return;
+                    }
+                    if (!e.ctrlKey && !e.shiftKey) {
+                      setSelectedIds(new Set());
+                    }
+                    setDragBox({
+                      active: true,
+                      startX: e.clientX,
+                      startY: e.clientY,
+                      currentX: e.clientX,
+                      currentY: e.clientY,
+                    });
+                  }}
+                  onMouseMove={(e) => {
+                    if (!dragBox.active) return;
+                    const currentX = e.clientX;
+                    const currentY = e.clientY;
+                    setDragBox(prev => ({ ...prev, currentX, currentY }));
+
+                    const left = Math.min(dragBox.startX, currentX);
+                    const top = Math.min(dragBox.startY, currentY);
+                    const right = Math.max(dragBox.startX, currentX);
+                    const bottom = Math.max(dragBox.startY, currentY);
+
+                    const cardElements = document.querySelectorAll('.item-card');
+                    const newSelected = new Set<string>();
+
+                    cardElements.forEach(el => {
+                      const rect = el.getBoundingClientRect();
+                      const id = el.getAttribute('data-id');
+                      if (!id) return;
+                      const intersect = !(
+                        rect.right < left ||
+                        rect.left > right ||
+                        rect.bottom < top ||
+                        rect.top > bottom
+                      );
+                      if (intersect) {
+                        newSelected.add(id);
+                      }
+                    });
+                    setSelectedIds(newSelected);
+                  }}
+                  onMouseUp={() => {
+                    setDragBox(prev => ({ ...prev, active: false }));
+                  }}
+                  className="flex-1 flex flex-col p-4 min-h-0 min-w-0 overflow-y-auto"
+                >
+                  {/* BREADCRUMB */}
+                  {activeFolderId && (
+                    <div className="mb-4 shrink-0">
+                      <TuiContainer label="Path" noPadding={true}>
+                        <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-[11px]">
+                          <button
+                            onClick={() => setActiveFolderId(null)}
+                            className="hover:underline cursor-pointer text-primary"
+                          >
+                            Root
+                          </button>
+                          <span>&gt;</span>
+                          <span className="text-foreground">
+                            {(() => {
+                              const f = items.find((x) => x.id === activeFolderId);
+                              return f ? getFolderName(f) : 'Folder';
+                            })()}
+                          </span>
+                        </div>
+                      </TuiContainer>
+                    </div>
+                  )}
+                  <div className="flex-1 min-h-0">
+                    {filteredList.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-muted text-sm select-none">
+                        No {activeTab}s dumped yet.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-8">
+                        {/* Folders Section */}
+                        {folders.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {folders.map(renderCard)}
+                          </div>
+                        )}
+
+                        {/* Items Section */}
+                        {normalItems.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {normalItems.map(renderCard)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TuiContainer>
+            </main>
+
+            <footer className="shrink-0 select-none">
+              <TuiContainer
+                label="Input Console"
+                style={{ width: '100%' }}
+                contentStyle={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+              >
+                <div className="flex flex-col gap-3">
+                  <form onSubmit={handleSubmitItem} className="flex gap-4 w-full items-end">
+                    <input
+                      type="file"
+                      id="attachment-input"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          handleDirectAddFiles(e.target.files);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <TuiButton
+                      type="button"
+                      onPress={() => document.getElementById('attachment-input')?.click()}
+                      className="!w-auto px-4 !h-10 !min-h-[40px] flex items-center justify-center gap-2 shrink-0"
+                      variant="outline"
+                      title="Attach Photos/Files"
+                    >
+                      <Paperclip size={18} />
+                      <span>File</span>
+                    </TuiButton>
+
+                    {/* Combined Staged File List + Input Wrapper */}
+                    <div className={`flex-1 flex flex-col border-[1.5px] border-border bg-card px-3 gap-3 min-h-[40px] justify-center ${attachedFiles.length > 0 ? 'py-2.25' : 'py-2'}`}>
+                      {/* Attachment Previews */}
+                      {attachedFiles.length > 0 && (
+                        <div className="flex flex-wrap gap-4 border-b border-border/30 pb-3">
+                          {attachedFiles.map((file, index) => {
+                            const isImage = file.type.startsWith('image/');
+                            return (
+                              <div key={index} className="relative border-[1.5px] border-border w-32 h-32 flex items-center justify-center bg-[#18181b] select-none">
+                                {isImage ? (
+                                  <ImagePreview file={file} />
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1.5 px-2 text-center min-w-0">
+                                    <span className="text-xs text-muted font-bold font-mono">
+                                      [ {file.name.split('.').pop()?.toUpperCase() || 'FILE'} ]
+                                    </span>
+                                    <span className="text-[9px] text-muted/60 truncate max-w-full font-mono">
+                                      {file.name}
+                                    </span>
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                  }}
+                                  className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer focus:outline-hidden"
+                                  title="Remove Attachment"
+                                >
+                                  <X size={24} className="text-white hover:scale-110 transition-transform duration-100" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <textarea
+                        ref={textareaRef}
+                        rows={1}
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={handleTextareaKeyDown}
+                        onPaste={handleInputPaste}
+                        placeholder="Enter link or text content here..."
+                        className="w-full bg-transparent text-xs focus:outline-hidden font-mono text-foreground p-0.5 resize-none overflow-y-hidden"
+                        style={{ height: 'auto', minHeight: '20px' }}
+                      />
+                    </div>
+
+                    <TuiButton onPress={handleSubmitItem} className="!w-auto px-6 !h-10 !min-h-[40px]">
+                      <Plus size={15} className="mr-1" />
+                      <span>Add</span>
+                    </TuiButton>
+                  </form>
+                  <p className="text-[9px] text-muted text-center leading-normal mt-0.5">
+                    Tip: Drag & Drop files or Paste (Ctrl+V) directly inside the input console text box to stage attachments!
+                  </p>
+                </div>
+              </TuiContainer>
+            </footer>
+          </div>
+        </div>
+        {/* SYNC CONFLICT MODAL */}
+        <ConflictModal
+          visible={conflictAlert.visible}
+          title={conflictAlert.title}
+          message={conflictAlert.message}
+          options={conflictAlert.options}
+        />
+
+        {/* CUSTOM DIALOG ALERT/CONFIRM MODAL */}
+        <TuiAlertModal
+          visible={dialog.visible}
+          title={dialog.title}
+          message={dialog.message}
+          type={dialog.type}
+          confirmText={dialog.confirmText}
+          cancelText={dialog.cancelText}
+          isDestructive={dialog.isDestructive}
+          onConfirm={dialog.onConfirm}
+          onCancel={dialog.onCancel}
+        />
+
+        {/* CUSTOM FOLDER PROMPT MODAL */}
+        {folderPrompt.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
+            <div className="w-full max-w-sm">
+              <TuiContainer label="New Folder" disableHover={true}>
+                <div className="py-2 flex flex-col gap-4">
+                  <p className="text-xs text-muted mb-1 font-mono">Enter folder name:</p>
                   <input
-                    type="file"
-                    id="attachment-input"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files) {
-                        handleDirectAddFiles(e.target.files);
-                        e.target.value = '';
+                    type="text"
+                    value={folderPrompt.name}
+                    onChange={(e) => setFolderPrompt({ ...folderPrompt, name: e.target.value })}
+                    placeholder="Folder Name"
+                    className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const name = folderPrompt.name.trim();
+                        setFolderPrompt({ ...folderPrompt, visible: false });
+                        if (name) createFolderWithName(name);
+                      } else if (e.key === 'Escape') {
+                        setFolderPrompt({ ...folderPrompt, visible: false });
                       }
                     }}
                   />
-                  <TuiButton
-                    type="button"
-                    onPress={() => document.getElementById('attachment-input')?.click()}
-                    className="!w-auto px-4 !h-10 !min-h-[40px] flex items-center justify-center gap-2 shrink-0"
-                    variant="outline"
-                    title="Attach Photos/Files"
-                  >
-                    <Paperclip size={18} />
-                    <span>File</span>
-                  </TuiButton>
-
-                  {/* Combined Staged File List + Input Wrapper */}
-                  <div className={`flex-1 flex flex-col border-[1.5px] border-border bg-card px-3 gap-3 min-h-[40px] justify-center ${attachedFiles.length > 0 ? 'py-2.25' : 'py-2'}`}>
-                    {/* Attachment Previews */}
-                    {attachedFiles.length > 0 && (
-                      <div className="flex flex-wrap gap-4 border-b border-border/30 pb-3">
-                        {attachedFiles.map((file, index) => {
-                          const isImage = file.type.startsWith('image/');
-                          return (
-                            <div key={index} className="relative border-[1.5px] border-border w-32 h-32 flex items-center justify-center bg-[#18181b] select-none">
-                              {isImage ? (
-                                <ImagePreview file={file} />
-                              ) : (
-                                <div className="flex flex-col items-center gap-1.5 px-2 text-center min-w-0">
-                                  <span className="text-xs text-muted font-bold font-mono">
-                                    [ {file.name.split('.').pop()?.toUpperCase() || 'FILE'} ]
-                                  </span>
-                                  <span className="text-[9px] text-muted/60 truncate max-w-full font-mono">
-                                    {file.name}
-                                  </span>
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
-                                }}
-                                className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 hover:opacity-100 cursor-pointer focus:outline-hidden"
-                                title="Remove Attachment"
-                              >
-                                <X size={24} className="text-white hover:scale-110 transition-transform duration-100" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    <textarea
-                      ref={textareaRef}
-                      rows={1}
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyDown={handleTextareaKeyDown}
-                      onPaste={handleInputPaste}
-                      placeholder="Enter link or text content here..."
-                      className="w-full bg-transparent text-xs focus:outline-hidden font-mono text-foreground p-0.5 resize-none overflow-y-hidden"
-                      style={{ height: 'auto', minHeight: '20px' }}
-                    />
+                  <div className="flex gap-4">
+                    <TuiButton
+                      onPress={() => setFolderPrompt({ ...folderPrompt, visible: false })}
+                      variant="outline"
+                    >
+                      Cancel
+                    </TuiButton>
+                    <TuiButton
+                      onPress={async () => {
+                        const name = folderPrompt.name.trim();
+                        setFolderPrompt({ ...folderPrompt, visible: false });
+                        if (name) {
+                          await createFolderWithName(name);
+                        }
+                      }}
+                      variant="accent"
+                    >
+                      Create
+                    </TuiButton>
                   </div>
-
-                  <TuiButton onPress={handleSubmitItem} className="!w-auto px-6 !h-10 !min-h-[40px]">
-                    <Plus size={15} className="mr-1" />
-                    <span>Add</span>
-                  </TuiButton>
-                </form>
-                <p className="text-[9px] text-muted text-center leading-normal mt-0.5">
-                  Tip: Drag & Drop files or Paste (Ctrl+V) directly inside the input console text box to stage attachments!
-                </p>
-              </div>
-            </TuiContainer>
-          </footer>
-        </div>
-      </div>
-      {/* SYNC CONFLICT MODAL */}
-      <ConflictModal
-        visible={conflictAlert.visible}
-        title={conflictAlert.title}
-        message={conflictAlert.message}
-        options={conflictAlert.options}
-      />
-
-      {/* CUSTOM DIALOG ALERT/CONFIRM MODAL */}
-      <TuiAlertModal
-        visible={dialog.visible}
-        title={dialog.title}
-        message={dialog.message}
-        type={dialog.type}
-        confirmText={dialog.confirmText}
-        cancelText={dialog.cancelText}
-        isDestructive={dialog.isDestructive}
-        onConfirm={dialog.onConfirm}
-        onCancel={dialog.onCancel}
-      />
-
-      {/* CUSTOM FOLDER PROMPT MODAL */}
-      {folderPrompt.visible && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
-          <div className="w-full max-w-sm">
-            <TuiContainer label="New Folder" disableHover={true}>
-              <div className="py-2 flex flex-col gap-4">
-                <p className="text-xs text-muted mb-1 font-mono">Enter folder name:</p>
-                <input
-                  type="text"
-                  value={folderPrompt.name}
-                  onChange={(e) => setFolderPrompt({ ...folderPrompt, name: e.target.value })}
-                  placeholder="Folder Name"
-                  className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const name = folderPrompt.name.trim();
-                      setFolderPrompt({ ...folderPrompt, visible: false });
-                      if (name) createFolderWithName(name);
-                    } else if (e.key === 'Escape') {
-                      setFolderPrompt({ ...folderPrompt, visible: false });
-                    }
-                  }}
-                />
-                <div className="flex gap-4">
-                  <TuiButton
-                    onPress={() => setFolderPrompt({ ...folderPrompt, visible: false })}
-                    variant="outline"
-                  >
-                    Cancel
-                  </TuiButton>
-                  <TuiButton
-                    onPress={async () => {
-                      const name = folderPrompt.name.trim();
-                      setFolderPrompt({ ...folderPrompt, visible: false });
-                      if (name) {
-                        await createFolderWithName(name);
-                      }
-                    }}
-                    variant="accent"
-                  >
-                    Create
-                  </TuiButton>
                 </div>
-              </div>
-            </TuiContainer>
+              </TuiContainer>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* PHOTO PREVIEW OVERLAY MODAL */}
-      {previewPhotoId && (
-        <PhotoPreviewModal
-          item={items.find(x => x.id === previewPhotoId)!}
-          onClose={() => setPreviewPhotoId(null)}
-          isContextMenuVisible={contextMenu.visible}
-          onContextMenu={(e, item) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setContextMenu({
-              visible: true,
-              x: e.clientX,
-              y: e.clientY,
-              item,
-            });
-          }}
-        />
-      )}
+        {/* PHOTO PREVIEW OVERLAY MODAL */}
+        {previewPhotoId && (
+          <PhotoPreviewModal
+            item={items.find(x => x.id === previewPhotoId)!}
+            onClose={() => setPreviewPhotoId(null)}
+            isContextMenuVisible={contextMenu.visible}
+            onContextMenu={(e, item) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setContextMenu({
+                visible: true,
+                x: e.clientX,
+                y: e.clientY,
+                item,
+              });
+            }}
+          />
+        )}
 
-      {/* CUSTOM CONTEXT MENU */}
-      {contextMenu.visible && contextMenu.item && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${contextMenu.x}px`,
-            top: `${contextMenu.y}px`,
-            zIndex: 99999,
-          }}
-          className="bg-card border-[1.5px] border-border py-1 min-w-[150px] font-mono animate-in fade-in zoom-in-95 duration-100 select-none animate-duration-100"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {selectedIds.size > 1 ? (
-            <>
-              <button
-                onClick={() => {
-                  const itemsToCopy = items.filter(x => selectedIds.has(x.id) && (x.type === 'text' || x.type === 'link'));
-                  const concatenated = itemsToCopy.map(x => x.value).join('\n');
-                  if (concatenated) {
-                    handleCopyText(concatenated);
-                  }
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
-              >
-                Copy Selected ({selectedIds.size})
-              </button>
-              <button
-                onClick={async () => {
-                  const itemsToCopy = items.filter(x => selectedIds.has(x.id) && (x.type === 'text' || x.type === 'link'));
-                  const concatenated = itemsToCopy.map(x => x.value).join('\n');
-                  if (concatenated) {
-                    await navigator.clipboard.writeText(concatenated);
-                  }
-                  handleCutSelected();
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
-              >
-                Cut Selected ({selectedIds.size})
-              </button>
-              <button
-                onClick={async () => {
-                  const confirmed = await showConfirm(
-                    'Confirm Deletion',
-                    `Delete all ${selectedIds.size} selected items?`,
-                    { confirmText: 'Delete All', isDestructive: true }
-                  );
-                  if (confirmed) {
-                    const currentItems = await getItems();
-                    const remaining = currentItems.filter(x => !selectedIds.has(x.id));
-                    const deletedItems = currentItems.filter(x => selectedIds.has(x.id));
-                    await saveItems(remaining);
-                    setItems(remaining);
-                    setSelectedIds(new Set());
-
-                    for (const delItem of deletedItems) {
-                      if (delItem.type === 'photo' || delItem.type === 'file') {
-                        await deleteItemFile(delItem.id);
-                      }
-                      await enqueueSyncTask('DELETE', delItem.id, delItem.type, {
-                        driveFileId: delItem.driveFileId,
-                        driveMetaFileId: delItem.driveMetaFileId,
-                      });
-                    }
-                    processSyncQueue();
-                  }
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white cursor-pointer transition-colors"
-              >
-                Delete Selected ({selectedIds.size})
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Copy option */}
-              <button
-                onClick={() => {
-                  handleCopyItem(contextMenu.item!);
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
-              >
-                Copy
-              </button>
-
-              {/* Cut option */}
-              <button
-                onClick={() => {
-                  handleCutItem(contextMenu.item!);
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
-              >
-                Move
-              </button>
-
-              {/* Download option (for photos/files) */}
-              {(contextMenu.item.type === 'photo' || contextMenu.item.type === 'file') && (
+        {/* CUSTOM CONTEXT MENU */}
+        {contextMenu.visible && contextMenu.item && (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+              zIndex: 99999,
+            }}
+            className="bg-card border-[1.5px] border-border py-1 min-w-[150px] font-mono animate-in fade-in zoom-in-95 duration-100 select-none animate-duration-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {selectedIds.size > 1 ? (
+              <>
                 <button
                   onClick={() => {
-                    handleDownloadFile(contextMenu.item!);
+                    const itemsToCopy = items.filter(x => selectedIds.has(x.id) && (x.type === 'text' || x.type === 'link'));
+                    const concatenated = itemsToCopy.map(x => x.value).join('\n');
+                    if (concatenated) {
+                      handleCopyText(concatenated);
+                    }
                     setContextMenu((prev) => ({ ...prev, visible: false }));
                   }}
                   className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
                 >
-                  Download File
+                  Copy Selected ({selectedIds.size})
                 </button>
-              )}
+                <button
+                  onClick={async () => {
+                    const itemsToCopy = items.filter(x => selectedIds.has(x.id) && (x.type === 'text' || x.type === 'link'));
+                    const concatenated = itemsToCopy.map(x => x.value).join('\n');
+                    if (concatenated) {
+                      await navigator.clipboard.writeText(concatenated);
+                    }
+                    handleCutSelected();
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
+                >
+                  Cut Selected ({selectedIds.size})
+                </button>
+                <button
+                  onClick={async () => {
+                    const confirmed = await showConfirm(
+                      'Confirm Deletion',
+                      `Delete all ${selectedIds.size} selected items?`,
+                      { confirmText: 'Delete All', isDestructive: true }
+                    );
+                    if (confirmed) {
+                      const currentItems = await getItems();
+                      const remaining = currentItems.filter(x => !selectedIds.has(x.id));
+                      const deletedItems = currentItems.filter(x => selectedIds.has(x.id));
+                      await saveItems(remaining);
+                      setItems(remaining);
+                      setSelectedIds(new Set());
 
-              {/* Edit option */}
-              <button
-                onClick={() => {
-                  setEditPrompt({
-                    visible: true,
-                    itemId: contextMenu.item!.id,
-                    label: contextMenu.item!.label,
-                    value: contextMenu.item!.value,
-                    type: contextMenu.item!.type,
-                  });
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
-              >
-                Edit
-              </button>
+                      for (const delItem of deletedItems) {
+                        if (delItem.type === 'photo' || delItem.type === 'file') {
+                          await deleteItemFile(delItem.id);
+                        }
+                        await enqueueSyncTask('DELETE', delItem.id, delItem.type, {
+                          driveFileId: delItem.driveFileId,
+                          driveMetaFileId: delItem.driveMetaFileId,
+                        });
+                      }
+                      processSyncQueue();
+                    }
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white cursor-pointer transition-colors"
+                >
+                  Delete Selected ({selectedIds.size})
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Copy option */}
+                <button
+                  onClick={() => {
+                    handleCopyItem(contextMenu.item!);
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
+                >
+                  Copy
+                </button>
 
-              {/* Delete option */}
-              <button
-                onClick={() => {
-                  handleDeleteItem(contextMenu.item!);
-                  setContextMenu((prev) => ({ ...prev, visible: false }));
-                }}
-                className="w-full text-left px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white cursor-pointer transition-colors"
-              >
-                Delete
-              </button>
-            </>
-          )}
-        </div>
-      )}
+                {/* Cut option */}
+                <button
+                  onClick={() => {
+                    handleCutItem(contextMenu.item!);
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
+                >
+                  Move
+                </button>
 
-      {/* DRAG SELECTION BOUNDING BOX */}
-      {dragBox.active && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${Math.min(dragBox.startX, dragBox.currentX)}px`,
-            top: `${Math.min(dragBox.startY, dragBox.currentY)}px`,
-            width: `${Math.abs(dragBox.startX - dragBox.currentX)}px`,
-            height: `${Math.abs(dragBox.startY - dragBox.currentY)}px`,
-            zIndex: 999999,
-          }}
-          className="border-[1.5px] border-primary bg-primary/10 pointer-events-none"
-        />
-      )}
-
-      {/* CUSTOM EDIT PROMPT MODAL */}
-      {editPrompt.visible && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
-          <div className="w-full max-w-sm">
-            <TuiContainer label={`Edit ${editPrompt.type}`} disableHover={true}>
-              <div className="py-2 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] uppercase font-bold text-muted">Label / Date</label>
-                  <input
-                    type="text"
-                    value={editPrompt.label}
-                    onChange={(e) => setEditPrompt({ ...editPrompt, label: e.target.value })}
-                    className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground"
-                  />
-                </div>
-
-                {(editPrompt.type === 'text' || editPrompt.type === 'link') && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] uppercase font-bold text-muted">Value / Content</label>
-                    <textarea
-                      value={editPrompt.value}
-                      onChange={(e) => setEditPrompt({ ...editPrompt, value: e.target.value })}
-                      rows={4}
-                      className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground resize-none"
-                    />
-                  </div>
+                {/* Download option (for photos/files) */}
+                {(contextMenu.item.type === 'photo' || contextMenu.item.type === 'file') && (
+                  <button
+                    onClick={() => {
+                      handleDownloadFile(contextMenu.item!);
+                      setContextMenu((prev) => ({ ...prev, visible: false }));
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
+                  >
+                    Download File
+                  </button>
                 )}
 
-                <div className="flex gap-4 mt-2">
-                  <TuiButton
-                    onPress={() => setEditPrompt({ ...editPrompt, visible: false })}
-                    variant="outline"
-                  >
-                    Cancel
-                  </TuiButton>
-                  <TuiButton
-                    onPress={handleSaveEdit}
-                    variant="accent"
-                  >
-                    Save
-                  </TuiButton>
-                </div>
-              </div>
-            </TuiContainer>
+                {/* Edit option */}
+                <button
+                  onClick={() => {
+                    setEditPrompt({
+                      visible: true,
+                      itemId: contextMenu.item!.id,
+                      label: contextMenu.item!.label,
+                      value: contextMenu.item!.value,
+                      type: contextMenu.item!.type,
+                    });
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold hover:bg-primary hover:text-black cursor-pointer transition-colors"
+                >
+                  Edit
+                </button>
+
+                {/* Delete option */}
+                <button
+                  onClick={() => {
+                    handleDeleteItem(contextMenu.item!);
+                    setContextMenu((prev) => ({ ...prev, visible: false }));
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs font-bold text-destructive hover:bg-destructive hover:text-white cursor-pointer transition-colors"
+                >
+                  Delete
+                </button>
+              </>
+            )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* DRAG SELECTION BOUNDING BOX */}
+        {dragBox.active && (
+          <div
+            style={{
+              position: 'fixed',
+              left: `${Math.min(dragBox.startX, dragBox.currentX)}px`,
+              top: `${Math.min(dragBox.startY, dragBox.currentY)}px`,
+              width: `${Math.abs(dragBox.startX - dragBox.currentX)}px`,
+              height: `${Math.abs(dragBox.startY - dragBox.currentY)}px`,
+              zIndex: 999999,
+            }}
+            className="border-[1.5px] border-primary bg-primary/10 pointer-events-none"
+          />
+        )}
+
+        {/* CUSTOM EDIT PROMPT MODAL */}
+        {editPrompt.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
+            <div className="w-full max-w-sm">
+              <TuiContainer label={`Edit ${editPrompt.type}`} disableHover={true}>
+                <div className="py-2 flex flex-col gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold text-muted">Label / Date</label>
+                    <input
+                      type="text"
+                      value={editPrompt.label}
+                      onChange={(e) => setEditPrompt({ ...editPrompt, label: e.target.value })}
+                      className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground"
+                    />
+                  </div>
+
+                  {(editPrompt.type === 'text' || editPrompt.type === 'link') && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-bold text-muted">Value / Content</label>
+                      <textarea
+                        value={editPrompt.value}
+                        onChange={(e) => setEditPrompt({ ...editPrompt, value: e.target.value })}
+                        rows={4}
+                        className="w-full border-[1.5px] border-border bg-card px-3 py-2 text-xs focus:outline-hidden font-mono text-foreground resize-none"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-4 mt-2">
+                    <TuiButton
+                      onPress={() => setEditPrompt({ ...editPrompt, visible: false })}
+                      variant="outline"
+                    >
+                      Cancel
+                    </TuiButton>
+                    <TuiButton
+                      onPress={handleSaveEdit}
+                      variant="accent"
+                    >
+                      Save
+                    </TuiButton>
+                  </div>
+                </div>
+              </TuiContainer>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

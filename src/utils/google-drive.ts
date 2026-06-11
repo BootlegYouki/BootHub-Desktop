@@ -439,9 +439,8 @@ export const fetchAllMetadataFromDrive = async (accessToken: string): Promise<an
   do {
     const requestUrl: string = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
       query
-    )}&fields=nextPageToken,files(id,name,parents,modifiedTime)&pageSize=100${
-      pageToken ? `&pageToken=${pageToken}` : ''
-    }`;
+    )}&fields=nextPageToken,files(id,name,parents,modifiedTime)&pageSize=100${pageToken ? `&pageToken=${pageToken}` : ''
+      }`;
 
     const response: any = await axios.get(requestUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
