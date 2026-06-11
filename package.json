@@ -1,7 +1,7 @@
 {
   "name": "boothub-desktop",
   "private": true,
-  "version": "main",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
