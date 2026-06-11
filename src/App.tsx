@@ -22,6 +22,7 @@ import { TitleBar } from './components/TitleBar';
 import { IconSvg } from './components/IconSvg';
 import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { check } from '@tauri-apps/plugin-updater';
 import {
   initiateOAuthFlow,
   exchangeCodeForTokens,
@@ -506,6 +507,26 @@ export default function App() {
       }
     };
     loadData();
+    
+    const runUpdater = async () => {
+      try {
+        const update = await check();
+        if (update && update.available) {
+          const confirmed = await showConfirm(
+            'Update Available',
+            `A new version (v${update.version}) of BootHub is available. Would you like to download and install it now?`,
+            { confirmText: 'Update Now', cancelText: 'Later' }
+          );
+          if (confirmed) {
+            showAlert('Updating', 'Downloading and installing update... The application will restart or exit when complete.');
+            await update.downloadAndInstall();
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check for updates:', err);
+      }
+    };
+    runUpdater();
 
     const unsubscribeStorage = subscribeToStorage(async () => {
       try {
@@ -1752,7 +1773,7 @@ export default function App() {
                 {activeFolderId && (
                   <div className="mb-4 shrink-0">
                     <TuiContainer label="Path" noPadding={true}>
-                      <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-1.5">
+                      <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-[11px]">
                         <button
                           onClick={() => setActiveFolderId(null)}
                           className="hover:underline cursor-pointer text-primary"
