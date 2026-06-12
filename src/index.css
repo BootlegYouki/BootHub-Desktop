@@ -26,22 +26,9 @@
   }
 }
 
-/* Thin scrollbar */
+/* Hide scrollbar UI */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(113, 113, 122, 0.4);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(113, 113, 122, 0.6);
+  display: none;
 }
 
 /* ── Custom Title Bar ── */

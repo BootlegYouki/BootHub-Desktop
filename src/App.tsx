@@ -1789,7 +1789,7 @@ export default function App() {
                   onMouseUp={() => {
                     setDragBox(prev => ({ ...prev, active: false }));
                   }}
-                  className="flex-1 flex flex-col p-4 min-h-0 min-w-0 overflow-y-auto"
+                  className={`flex-1 flex flex-col p-4 min-h-0 min-w-0 ${contextMenu.visible ? 'overflow-hidden' : 'overflow-y-auto'}`}
                 >
                   {/* BREADCRUMB */}
                   {activeFolderId && (
@@ -2025,6 +2025,21 @@ export default function App() {
         )}
 
         {/* CUSTOM CONTEXT MENU */}
+        {contextMenu.visible && (
+          <div
+            className="fixed inset-0 z-[99998] bg-transparent cursor-default"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setContextMenu((prev) => ({ ...prev, visible: false }));
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setContextMenu((prev) => ({ ...prev, visible: false }));
+            }}
+          />
+        )}
         {contextMenu.visible && contextMenu.item && (
           <div
             style={{
