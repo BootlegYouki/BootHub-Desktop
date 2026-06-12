@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -75,3 +76,25 @@ cargoToml = cargoToml.replace(/^version\s*=\s*".*"/m, `version = "${newVersion}"
 fs.writeFileSync(cargoTomlPath, cargoToml, 'utf-8');
 
 console.log(`Version bumped from ${currentVersion} to ${newVersion} successfully in package.json, tauri.conf.json, and Cargo.toml.`);
+
+try {
+  console.log('Staging version changes...');
+  execSync('git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml', { stdio: 'inherit' });
+
+  console.log(`Committing version bump to v${newVersion}...`);
+  execSync(`git commit -m "chore: bump version to v${newVersion}"`, { stdio: 'inherit' });
+
+  console.log(`Creating tag v${newVersion}...`);
+  execSync(`git tag -a v${newVersion} -m "Version ${newVersion}"`, { stdio: 'inherit' });
+
+  console.log('Pushing commit to remote main branch...');
+  execSync('git push origin main', { stdio: 'inherit' });
+
+  console.log(`Pushing tag v${newVersion} to remote...`);
+  execSync(`git push origin v${newVersion}`, { stdio: 'inherit' });
+
+  console.log('Successfully bumped, tagged, and pushed to GitHub. Release workflow should trigger automatically.');
+} catch (error) {
+  console.error('Git automation failed:', error.message);
+  process.exit(1);
+}
