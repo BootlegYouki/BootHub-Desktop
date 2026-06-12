@@ -1,6 +1,6 @@
 [package]
 name = "boothub"
-version = "0.2.3"
+version = "0.2.4"
 description = "A Tauri App"
 authors = ["BootlegYouki"]
 edition = "2021"
