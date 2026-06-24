@@ -189,12 +189,13 @@ export const exchangeCodeForTokens = async (
   codeVerifier: string,
   redirectUri: string
 ): Promise<any> => {
+  const decodedCode = decodeURIComponent(code);
   const res = await axios.post(
     discovery.tokenEndpoint,
     new URLSearchParams({
       client_id: CLIENT_ID_WEB,
       client_secret: CLIENT_SECRET_WEB,
-      code,
+      code: decodedCode,
       redirect_uri: redirectUri,
       code_verifier: codeVerifier,
       grant_type: 'authorization_code',
