@@ -32,8 +32,8 @@ import {
   clearAuthSession,
   getGoogleUserInfo,
   isUserSignedIn,
-  fetchAllMetadataFromDrive,
 } from './utils/google-drive';
+import { supabase } from './utils/supabase';
 import {
   getItems,
   saveItems,
@@ -588,44 +588,51 @@ export default function App() {
           const hasPendingDeletions = queue.some((t) => t.action === 'DELETE');
           let handledConflict = false;
 
-          if (hasPendingDeletions) {
-            const remoteFiles = await fetchAllMetadataFromDrive(tokens.access_token);
-            if (remoteFiles && remoteFiles.length > 0) {
-              handledConflict = true;
-              setConflictAlert({
-                visible: true,
-                title: 'Sync Conflict Detected',
-                message:
-                  'You deleted some items on this device while disconnected, but they still exist on Google Drive. Would you like to restore them to this device or remove them from Google Drive?',
-                options: [
-                  {
-                    text: 'Restore to Device',
-                    onPress: async () => {
-                      setConflictAlert((prev) => ({ ...prev, visible: false }));
-                      updateSyncStatus({ isSyncing: true, error: null });
-                      try {
-                        const currentQueue = await getSyncQueue();
-                        const filteredQueue = currentQueue.filter((t) => t.action !== 'DELETE');
-                        await saveSyncQueue(filteredQueue);
-                        await pullChangesFromDrive();
-                      } catch (e) {
-                        console.error(e);
-                      } finally {
+          if (hasPendingDeletions && info && info.email) {
+            try {
+              const { data: remoteItems } = await supabase
+                .from('items')
+                .select('id')
+                .eq('email', info.email.trim().toLowerCase());
+              if (remoteItems && remoteItems.length > 0) {
+                handledConflict = true;
+                setConflictAlert({
+                  visible: true,
+                  title: 'Sync Conflict Detected',
+                  message:
+                    'You deleted some items on this device while disconnected, but they still exist on the cloud. Would you like to restore them to this device or remove them from the cloud?',
+                  options: [
+                    {
+                      text: 'Restore to Device',
+                      onPress: async () => {
+                        setConflictAlert((prev) => ({ ...prev, visible: false }));
+                        updateSyncStatus({ isSyncing: true, error: null });
+                        try {
+                          const currentQueue = await getSyncQueue();
+                          const filteredQueue = currentQueue.filter((t) => t.action !== 'DELETE');
+                          await saveSyncQueue(filteredQueue);
+                          await pullChangesFromDrive();
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          processSyncQueue();
+                        }
+                      },
+                    },
+                    {
+                      text: 'Remove from Cloud',
+                      style: 'destructive',
+                      onPress: () => {
+                        setConflictAlert((prev) => ({ ...prev, visible: false }));
+                        updateSyncStatus({ isSyncing: true, error: null });
                         processSyncQueue();
-                      }
+                      },
                     },
-                  },
-                  {
-                    text: 'Remove from Drive',
-                    style: 'destructive',
-                    onPress: () => {
-                      setConflictAlert((prev) => ({ ...prev, visible: false }));
-                      updateSyncStatus({ isSyncing: true, error: null });
-                      processSyncQueue();
-                    },
-                  },
-                ],
-              });
+                  ],
+                });
+              }
+            } catch (e) {
+              console.warn('Failed to check conflicts on sign-in:', e);
             }
           }
 
@@ -668,7 +675,7 @@ export default function App() {
 
   // Register the sync engine conflict modal trigger
   useEffect(() => {
-    setConflictResolver((count) => {
+    setConflictResolver((count: number) => {
       return new Promise((resolve) => {
         setConflictAlert({
           visible: true,
@@ -710,7 +717,7 @@ export default function App() {
   const handleDisconnect = async () => {
     const confirmed = await showConfirm(
       'Disconnect Cloud',
-      'Disconnect Google Drive? This will stop syncing but local items will remain.',
+      'Disconnect cloud sync? This will stop syncing but local items will remain.',
       { confirmText: 'Disconnect', isDestructive: true }
     );
     if (confirmed) {
@@ -1715,7 +1722,7 @@ export default function App() {
                       variant="outline"
                       className="w-full !min-h-[32px] !py-1 text-xs mt-auto"
                     >
-                      Connect Drive
+                      Connect Sync
                     </TuiButton>
                   </div>
                 )}
