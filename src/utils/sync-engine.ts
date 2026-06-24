@@ -447,6 +447,8 @@ export const pullChangesFromDrive = async (): Promise<void> => {
     }
 
     const localItems = await getItems();
+    const queue = await getSyncQueue();
+    const pendingDeletes = new Set(queue.filter((t) => t.action === 'DELETE').map((t) => t.itemId));
     const remoteItemIds = new Set((remoteItems || []).map((x) => x.id));
 
     const itemsDeletedRemotely = localItems.filter((item) => {
@@ -470,6 +472,9 @@ export const pullChangesFromDrive = async (): Promise<void> => {
 
     // Add or update local records from remote
     for (const remote of remoteItems || []) {
+      if (pendingDeletes.has(remote.id)) {
+        continue;
+      }
       const localIndex = updatedLocalItems.findIndex((x) => x.id === remote.id);
       const mappedItem: DumpItem = {
         id: remote.id,

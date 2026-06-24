@@ -61,6 +61,7 @@ import {
   updateSyncStatus,
   initializeRealtimeSync,
   closeRealtimeSync,
+  enqueueUnsyncedLocalItems,
 } from './utils/sync-engine';
 
 const ACCENT_COLORS = {
@@ -79,20 +80,42 @@ interface PhotoThumbnailProps {
   itemId: string;
 }
 
+// Memory cache for object URLs of photo/file items to avoid flicker & load instantly
+const objectUrlCache = new Map<string, string>();
+
+const getCachedObjectUrl = (itemId: string, blob: Blob): string => {
+  let cached = objectUrlCache.get(itemId);
+  if (!cached) {
+    cached = URL.createObjectURL(blob);
+    objectUrlCache.set(itemId, cached);
+  }
+  return cached;
+};
+
+const revokeCachedObjectUrl = (itemId: string) => {
+  const cached = objectUrlCache.get(itemId);
+  if (cached) {
+    URL.revokeObjectURL(cached);
+    objectUrlCache.delete(itemId);
+  }
+};
+
 const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
-  const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = objectUrlCache.get(itemId);
+  const [imgUrl, setImgUrl] = useState<string | null>(cached || null);
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
+    if (cached) return;
+
     let active = true;
-    let objectUrl: string | null = null;
 
     const loadImg = async () => {
       try {
         const blob = await getItemFile(itemId);
         if (blob && active) {
-          objectUrl = URL.createObjectURL(blob);
-          setImgUrl(objectUrl);
+          const url = getCachedObjectUrl(itemId, blob);
+          setImgUrl(url);
         }
       } catch (err) {
         console.error('Failed to load thumbnail:', err);
@@ -104,11 +127,8 @@ const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
 
     return () => {
       active = false;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
     };
-  }, [itemId]);
+  }, [itemId, cached]);
 
   if (loading) {
     return (
@@ -164,19 +184,21 @@ interface PhotoPreviewModalProps {
 }
 
 const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ item, onClose, onContextMenu, isContextMenuVisible }) => {
-  const [imgUrl, setImgUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = objectUrlCache.get(item.id);
+  const [imgUrl, setImgUrl] = useState<string | null>(cached || null);
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
+    if (cached) return;
+
     let active = true;
-    let objectUrl: string | null = null;
 
     const loadImg = async () => {
       try {
         const blob = await getItemFile(item.id);
         if (blob && active) {
-          objectUrl = URL.createObjectURL(blob);
-          setImgUrl(objectUrl);
+          const url = getCachedObjectUrl(item.id, blob);
+          setImgUrl(url);
         }
       } catch (err) {
         console.error('Failed to load preview:', err);
@@ -188,11 +210,8 @@ const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ item, onClose, on
 
     return () => {
       active = false;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
     };
-  }, [item.id]);
+  }, [item.id, cached]);
 
   return (
     <div
@@ -500,6 +519,8 @@ export default function App() {
         if (signed) {
           const info = await getGoogleUserInfo();
           setUserInfo(info);
+          // Scan and enqueue any local items that need sync first
+          await enqueueUnsyncedLocalItems().catch((err) => console.error(err));
           // Auto-trigger sync on launch
           processSyncQueue();
           initializeRealtimeSync();
@@ -543,6 +564,13 @@ export default function App() {
       try {
         const data = await getItems();
         setItems(data);
+        // Clean up cache for any items that have been deleted/changed
+        const activeIds = new Set(data.map(x => x.id));
+        for (const cachedId of Array.from(objectUrlCache.keys())) {
+          if (!activeIds.has(cachedId)) {
+            revokeCachedObjectUrl(cachedId);
+          }
+        }
       } catch (err) {
         console.error('Failed to reload items on storage change:', err);
       }
@@ -637,6 +665,7 @@ export default function App() {
           }
 
           if (!handledConflict) {
+            await enqueueUnsyncedLocalItems().catch((err) => console.error(err));
             await pullChangesFromDrive();
           }
         } catch (err: any) {
@@ -730,8 +759,13 @@ export default function App() {
     }
   };
 
-  const handleManualSync = () => {
-    pullChangesFromDrive().catch((err) => console.error(err));
+  const handleManualSync = async () => {
+    try {
+      await enqueueUnsyncedLocalItems();
+      await pullChangesFromDrive();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSetThemeMode = async (mode: 'dark' | 'light') => {
@@ -1129,7 +1163,7 @@ export default function App() {
     processSyncQueue();
   };
 
-  // Filter items
+  // Filter items (sorted descending by ID/timestamp so latest are on top)
   const filteredList = items.filter((item) => {
     // Check search query
     if (searchQuery) {
@@ -1148,7 +1182,7 @@ export default function App() {
       return getFolderTab(item) === activeTab;
     }
     return item.type === activeTab;
-  });
+  }).sort((a, b) => b.id.localeCompare(a.id));
 
   const folders = filteredList.filter((item) => item.type === 'folder');
   const normalItems = filteredList.filter((item) => item.type !== 'folder');
