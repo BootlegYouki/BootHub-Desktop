@@ -482,19 +482,12 @@ export const pullChangesFromDrive = async (): Promise<void> => {
         driveFileId: remote.storage_path || undefined,
       };
 
-      if (localIndex >= 0) {
-        const localItem = updatedLocalItems[localIndex];
-        if (localItem.syncState === 'pending') {
-          continue;
-        }
-        updatedLocalItems[localIndex] = {
-          ...localItem,
-          ...mappedItem,
-        };
-      } else {
-        // New remote item - download file if it has storage_path
-        if ((remote.type === 'photo' || remote.type === 'file') && remote.storage_path) {
+      // Download file if missing locally
+      if ((remote.type === 'photo' || remote.type === 'file') && remote.storage_path) {
+        const hasLocalFile = await getItemFile(remote.id);
+        if (!hasLocalFile) {
           try {
+            console.log(`[Sync Engine] Downloading missing file binary for item: ${remote.id}`);
             const { data: blobData, error: downloadErr } = await supabase.storage
               .from('files')
               .download(remote.storage_path);
@@ -510,7 +503,18 @@ export const pullChangesFromDrive = async (): Promise<void> => {
             console.error(`Failed to download asset for item ${remote.id}:`, downloadErr);
           }
         }
+      }
 
+      if (localIndex >= 0) {
+        const localItem = updatedLocalItems[localIndex];
+        if (localItem.syncState === 'pending') {
+          continue;
+        }
+        updatedLocalItems[localIndex] = {
+          ...localItem,
+          ...mappedItem,
+        };
+      } else {
         updatedLocalItems.push(mappedItem);
       }
     }
