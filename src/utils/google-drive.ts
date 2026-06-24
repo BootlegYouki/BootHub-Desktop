@@ -68,7 +68,6 @@ export const initiateOAuthFlow = async (): Promise<void> => {
   // 3. Open system web browser
   const redirectUri = 'http://localhost:14200/oauth2redirect';
   const scopes = [
-    'https://www.googleapis.com/auth/drive.file',
     'openid',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
