@@ -452,7 +452,12 @@ export const pullChangesFromDrive = async (): Promise<void> => {
     const remoteItemIds = new Set((remoteItems || []).map((x) => x.id));
 
     const itemsDeletedRemotely = localItems.filter((item) => {
-      const isSupabaseSynced = item.syncState === 'synced' && item.driveFileId && item.driveFileId.includes('/');
+      const isSupabaseSynced =
+        item.syncState === 'synced' &&
+        (item.type === 'text' ||
+          item.type === 'link' ||
+          item.type === 'folder' ||
+          (item.driveFileId && item.driveFileId.includes('/')));
       return isSupabaseSynced && !remoteItemIds.has(item.id);
     });
 
