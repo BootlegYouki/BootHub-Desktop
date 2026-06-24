@@ -1,4 +1,4 @@
-import { getGoogleUserInfo } from './google-drive';
+import { getGoogleUserInfo } from './google-auth';
 import { supabase } from './supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import {

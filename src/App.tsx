@@ -32,7 +32,7 @@ import {
   clearAuthSession,
   getGoogleUserInfo,
   isUserSignedIn,
-} from './utils/google-drive';
+} from './utils/google-auth';
 import { supabase } from './utils/supabase';
 import {
   getItems,
