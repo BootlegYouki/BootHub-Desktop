@@ -53,7 +53,7 @@ import {
   processSyncQueue,
   enqueueSyncTask,
   enqueueSyncTasks,
-  pullChangesFromDrive,
+  pullChangesFromCloud,
   setConflictResolver,
   subscribeToUploadProgress,
   SyncStatus,
@@ -328,13 +328,122 @@ export default function App() {
     e.stopPropagation();
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const traverseEntry = async (
+    entry: any,
+    parentFolderId?: string,
+    newItemsList: DumpItem[] = [],
+    tabType: TabType = activeTab
+  ): Promise<void> => {
+    if (entry.isFile) {
+      const file = await new Promise<File>((resolve, reject) => {
+        entry.file(resolve, reject);
+      });
+
+      const fileId = `${Date.now()}_file_${Math.random().toString(36).substring(2, 5)}`;
+      const isImage = file.type.startsWith('image/');
+      const type = isImage ? 'photo' : 'file';
+
+      let value = '';
+      if (isImage) {
+        value = file.name;
+      } else {
+        value = JSON.stringify({
+          name: file.name,
+          size: file.size,
+          mimeType: file.type,
+        });
+      }
+
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(
+        now.getHours()
+      )}:${pad(now.getMinutes())}`;
+
+      const newFileItem: DumpItem = {
+        id: fileId,
+        type,
+        label,
+        value,
+        syncState: 'pending',
+        folderId: parentFolderId,
+      };
+
+      await saveItemFile(fileId, file);
+      await addItem(newFileItem);
+      newItemsList.push(newFileItem);
+    } else if (entry.isDirectory) {
+      const folderId = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+      const value = JSON.stringify({
+        name: entry.name,
+        tab: tabType,
+      });
+
+      const newFolderItem: DumpItem = {
+        id: folderId,
+        type: 'folder',
+        label: entry.name,
+        value,
+        syncState: 'pending',
+        folderId: parentFolderId,
+      };
+
+      await addItem(newFolderItem);
+      newItemsList.push(newFolderItem);
+
+      const dirReader = entry.createReader();
+      const entries = await new Promise<any[]>((resolve, reject) => {
+        const readAll = (acc: any[] = []) => {
+          dirReader.readEntries((results: any[]) => {
+            if (results.length === 0) {
+              resolve(acc);
+            } else {
+              readAll([...acc, ...results]);
+            }
+          }, reject);
+        };
+        readAll();
+      });
+
+      for (const subEntry of entries) {
+        await traverseEntry(subEntry, folderId, newItemsList, tabType);
+      }
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     if (isInternalDrag.current) return;
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     dragCounter.current = 0;
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+
+    const items = e.dataTransfer.items;
+    if (items && items.length > 0) {
+      const newItemsList: DumpItem[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+        if (entry) {
+          await traverseEntry(entry, activeFolderId || undefined, newItemsList, activeTab);
+        }
+      }
+
+      if (newItemsList.length > 0) {
+        const firstItem = newItemsList[0];
+        if (firstItem.type !== 'folder') {
+          setActiveTab(firstItem.type);
+        }
+
+        await enqueueSyncTasks(
+          newItemsList.map((item) => ({
+            action: 'UPLOAD',
+            itemId: item.id,
+            itemType: item.type,
+          }))
+        );
+        processSyncQueue();
+      }
+    } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleDirectAddFiles(e.dataTransfer.files);
     }
   };
@@ -639,7 +748,7 @@ export default function App() {
                           const currentQueue = await getSyncQueue();
                           const filteredQueue = currentQueue.filter((t) => t.action !== 'DELETE');
                           await saveSyncQueue(filteredQueue);
-                          await pullChangesFromDrive();
+                          await pullChangesFromCloud();
                         } catch (e) {
                           console.error(e);
                         } finally {
@@ -666,7 +775,7 @@ export default function App() {
 
           if (!handledConflict) {
             await enqueueUnsyncedLocalItems().catch((err) => console.error(err));
-            await pullChangesFromDrive();
+            await pullChangesFromCloud();
           }
         } catch (err: any) {
           console.error('Failed to exchange auth tokens:', err);
@@ -692,7 +801,7 @@ export default function App() {
   useEffect(() => {
     const setupTraySyncListener = async () => {
       const unlisten = await listen('tray-sync', () => {
-        pullChangesFromDrive().catch((err) => console.error(err));
+        pullChangesFromCloud().catch((err) => console.error(err));
       });
       return unlisten;
     };
@@ -709,7 +818,7 @@ export default function App() {
         setConflictAlert({
           visible: true,
           title: 'Sync Conflict Detected',
-          message: `We found ${count} item(s) that were deleted on Google Drive but still exist on this device. Would you like to restore them to the cloud or remove them from this device?`,
+          message: `We found ${count} item(s) that were deleted on the cloud but still exist on this device. Would you like to restore them to the cloud or remove them from this device?`,
           options: [
             {
               text: 'Restore to Cloud',
@@ -986,8 +1095,7 @@ export default function App() {
     }
 
     await enqueueSyncTask('DELETE', item.id, item.type, {
-      driveFileId: item.driveFileId,
-      driveMetaFileId: item.driveMetaFileId,
+      storagePath: item.storagePath || item.driveFileId,
     });
     processSyncQueue();
   };
@@ -1016,8 +1124,7 @@ export default function App() {
         await deleteItemFile(delItem.id);
       }
       await enqueueSyncTask('DELETE', delItem.id, delItem.type, {
-        driveFileId: delItem.driveFileId,
-        driveMetaFileId: delItem.driveMetaFileId,
+        storagePath: delItem.storagePath || delItem.driveFileId,
       });
     }
     processSyncQueue();
@@ -1834,14 +1941,14 @@ export default function App() {
                 >
                   {/* BREADCRUMB */}
                   {activeFolderId && (
-                    <div className="mb-4 shrink-0">
+                    <div className="sticky top-0 z-20 bg-card pt-4 -mt-4 pb-3 mb-2 shrink-0">
                       <TuiContainer label="Path" noPadding={true}>
-                        <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 py-[11px]">
+                        <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 h-9">
                           <button
                             onClick={() => setActiveFolderId(null)}
                             className="hover:underline cursor-pointer text-primary"
                           >
-                            Root
+                            {activeTab === 'link' ? 'Links' : activeTab === 'text' ? 'Texts' : activeTab === 'photo' ? 'Photos' : 'Files'}
                           </button>
                           <span>&gt;</span>
                           <span className="text-foreground">

@@ -4,8 +4,8 @@ export interface DumpItem {
   label: string;
   value: string; // URL, text content, JSON metadata for photos/files
   folderId?: string;
-  driveMetaFileId?: string;
-  driveFileId?: string;
+  driveFileId?: string; // deprecated, kept for compatibility if needed
+  storagePath?: string;
   syncState: 'synced' | 'pending' | 'syncing';
 }
 
@@ -15,8 +15,7 @@ export interface SyncTask {
   itemId: string;
   itemType: DumpItem['type'];
   fileUri?: string; // Kept in memory for compatibility, maps to IndexedDB file store
-  driveMetaFileId?: string;
-  driveFileId?: string;
+  storagePath?: string;
 }
 
 const DB_NAME = 'boothub_db';

@@ -17,55 +17,69 @@ import {
 
 let realtimeChannel: RealtimeChannel | null = null;
 let realtimeActiveEmail: string | null = null;
+let realtimeInitPromise: Promise<void> | null = null;
 
 export const initializeRealtimeSync = async (): Promise<void> => {
-  try {
-    const userInfo = await getGoogleUserInfo();
-    if (!userInfo || !userInfo.email) {
-      closeRealtimeSync();
-      return;
-    }
+  if (realtimeInitPromise) {
+    return realtimeInitPromise;
+  }
 
-    const email = userInfo.email.trim().toLowerCase();
-    if (realtimeChannel && realtimeActiveEmail === email) {
-      return;
-    }
+  realtimeInitPromise = (async () => {
+    try {
+      const userInfo = await getGoogleUserInfo();
+      if (!userInfo || !userInfo.email) {
+        closeRealtimeSync();
+        return;
+      }
 
-    if (realtimeChannel) {
-      closeRealtimeSync();
-    }
+      const email = userInfo.email.trim().toLowerCase();
+      if (realtimeChannel && realtimeActiveEmail === email) {
+        return;
+      }
 
-    realtimeActiveEmail = email;
-    console.log('[Realtime Sync] Subscribing to Supabase changes for', email);
+      if (realtimeChannel) {
+        closeRealtimeSync();
+      }
 
-    realtimeChannel = supabase
-      .channel(`public:items:email=eq.${email}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'items',
-          filter: `email=eq.${email}`,
-        },
-        async (payload) => {
-          console.log('[Realtime Sync] Received realtime change:', payload.eventType);
-          pullChangesFromDrive().catch((err) => {
-            console.error('[Realtime Sync] Pull failed:', err);
-          });
-        }
-      )
-      .subscribe((status) => {
+      realtimeActiveEmail = email;
+      console.log('[Realtime Sync] Subscribing to Supabase changes for', email);
+
+      const channel = supabase.channel(`public:items:email=eq.${email}`);
+
+      realtimeChannel = channel
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'items',
+            filter: `email=eq.${email}`,
+          },
+          async (payload) => {
+            console.log('[Realtime Sync] Received realtime change:', payload.eventType);
+            pullChangesFromCloud().catch((err) => {
+              console.error('[Realtime Sync] Pull failed:', err);
+            });
+          }
+        );
+
+      channel.subscribe((status) => {
         console.log('[Realtime Sync] Subscription status:', status);
       });
-  } catch (err) {
-    console.error('[Realtime Sync] Failed to initialize:', err);
-  }
+    } catch (err) {
+      console.error('[Realtime Sync] Failed to initialize:', err);
+    } finally {
+      realtimeInitPromise = null;
+    }
+  })();
+
+  return realtimeInitPromise;
 };
 
 export const closeRealtimeSync = (): void => {
   if (realtimeChannel) {
     realtimeChannel.unsubscribe();
+    supabase.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
   realtimeActiveEmail = null;
@@ -230,8 +244,7 @@ export const enqueueUnsyncedLocalItems = async (): Promise<void> => {
     const queue = await getSyncQueue();
 
     const unsyncedItems = items.filter((item) => {
-      const isLegacyDriveItem = item.syncState === 'synced' && (!item.driveFileId || !item.driveFileId.includes('/'));
-      const needsSync = item.syncState !== 'synced' || isLegacyDriveItem;
+      const needsSync = item.syncState !== 'synced';
       const isAlreadyQueued = queue.some((t) => t.itemId === item.id && (t.action === 'UPLOAD' || t.action === 'UPDATE'));
       return needsSync && !isAlreadyQueued;
     });
@@ -320,7 +333,7 @@ export const processSyncQueue = async (): Promise<void> => {
           if (task.action === 'UPLOAD' || task.action === 'UPDATE') {
             if (!localItem) continue;
 
-            let storagePath = localItem.driveFileId || '';
+            let storagePath = localItem.storagePath || localItem.driveFileId || '';
 
             if ((localItem.type === 'photo' || localItem.type === 'file') && !storagePath) {
               const fileBlob = await getItemFile(localItem.id);
@@ -370,7 +383,7 @@ export const processSyncQueue = async (): Promise<void> => {
                 return {
                   ...item,
                   syncState: 'synced' as const,
-                  driveFileId: storagePath,
+                  storagePath,
                 };
               }
               return item;
@@ -427,7 +440,7 @@ const dequeueTask = async (taskId: string) => {
   });
 };
 
-export const pullChangesFromDrive = async (): Promise<void> => {
+export const pullChangesFromCloud = async (): Promise<void> => {
   const userInfo = await getGoogleUserInfo();
   if (!userInfo || !userInfo.email) {
     console.warn('Cannot pull changes: User not signed in.');
@@ -457,7 +470,7 @@ export const pullChangesFromDrive = async (): Promise<void> => {
         (item.type === 'text' ||
           item.type === 'link' ||
           item.type === 'folder' ||
-          (item.driveFileId && item.driveFileId.includes('/')));
+          ((item.storagePath || item.driveFileId) && (item.storagePath || item.driveFileId)!.includes('/')));
       return isSupabaseSynced && !remoteItemIds.has(item.id);
     });
 
@@ -488,12 +501,11 @@ export const pullChangesFromDrive = async (): Promise<void> => {
         value: remote.value,
         folderId: remote.folder_id || undefined,
         syncState: 'synced',
-        driveMetaFileId: remote.id, // map to driveMetaFileId for compatibility
-        driveFileId: remote.storage_path || undefined,
+        storagePath: remote.storage_path || undefined,
       };
 
       // Download file if missing locally
-      if ((remote.type === 'photo' || remote.type === 'file') && remote.storage_path) {
+      if ((remote.type === 'photo' || remote.type === 'file') && remote.storage_path && remote.storage_path.includes('/')) {
         const hasLocalFile = await getItemFile(remote.id);
         if (!hasLocalFile) {
           try {
