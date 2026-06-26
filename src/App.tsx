@@ -871,7 +871,7 @@ export default function App() {
   const handleManualSync = async () => {
     try {
       await enqueueUnsyncedLocalItems();
-      await pullChangesFromDrive();
+      await pullChangesFromCloud();
     } catch (err) {
       console.error(err);
     }
@@ -1394,8 +1394,6 @@ export default function App() {
           label: newLabel,
           value: newValue,
           folderId: newParentId,
-          driveFileId: undefined,
-          driveMetaFileId: undefined,
           syncState: 'pending',
         };
 
@@ -2248,8 +2246,7 @@ export default function App() {
                           await deleteItemFile(delItem.id);
                         }
                         await enqueueSyncTask('DELETE', delItem.id, delItem.type, {
-                          driveFileId: delItem.driveFileId,
-                          driveMetaFileId: delItem.driveMetaFileId,
+                          storagePath: delItem.storagePath || delItem.driveFileId,
                         });
                       }
                       processSyncQueue();
