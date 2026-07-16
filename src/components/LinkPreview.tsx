@@ -1,5 +1,7 @@
+import { View, Text, Image } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface PreviewData {
   image: string | null;
@@ -61,6 +63,7 @@ const isDirectImageUrl = (url: string) => {
 export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
   const [loading, setLoading] = useState<boolean>(() => !previewCache.has(url));
   const [data, setData] = useState<PreviewData | null>(() => previewCache.get(url) || null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -91,10 +94,11 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         return;
       }
 
-      // Check localStorage cache
-      const cacheKey = getStorageKeyForUrl(url);
+      // Check AsyncStorage cache
+      // const cacheKey = getStorageKeyForUrl(url);
+      /*
       try {
-        const cachedRaw = localStorage.getItem(cacheKey);
+        const cachedRaw = await AsyncStorage.getItem(cacheKey);
         if (cachedRaw) {
           const parsed = JSON.parse(cachedRaw) as PreviewData;
           previewCache.set(url, parsed);
@@ -107,8 +111,8 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
       } catch (e) {
         console.warn('Failed to read persistent preview cache:', e);
       }
+      */
 
-      // Scrape Webpage (CORS-free due to Tauri fetch adapter bound to axios)
       try {
         setLoading(true);
 
@@ -122,7 +126,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
         const response = await axios.get(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
           },
           responseType: 'text',
           signal: controller.signal
@@ -133,7 +137,6 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         }
 
         const html = response.data;
-
         const metaTags = extractMetaTags(html);
         
         const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -159,11 +162,11 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         previewCache.set(url, finalData);
 
         if (finalData) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(finalData));
-          } catch (e) {
-            console.warn('Failed to save to persistent preview cache:', e);
-          }
+          // try {
+          //   await AsyncStorage.setItem(cacheKey, JSON.stringify(finalData));
+          // } catch (e) {
+          //   console.warn('Failed to save to persistent preview cache:', e);
+          // }
         }
         
         if (active) {
@@ -194,56 +197,55 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
   if (loading) {
     return (
-      <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 animate-pulse select-none">
-        <div className="w-full aspect-[21/9] bg-zinc-800/40 border-[1.5px] border-border/40" />
-        <div className="bg-[#18181b]/35 dark:bg-[#18181b]/10 p-2 border-[1.5px] border-border/30 flex flex-col gap-2">
-          <div className="h-3 bg-zinc-800/50 w-2/3" />
-          <div className="h-2 bg-zinc-800/40 w-6/6" />
-          <div className="h-2 bg-zinc-800/40 w-6/6" />
-          <div className="h-2 bg-zinc-800/40 w-5/6" />
-        </div>
-      </div>
+      <View className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex-col gap-2">
+        <View className="w-full aspect-[21/9] bg-zinc-800/40 border-[1.5px] border-border/40" />
+        <View className="bg-[#18181b]/35 p-2 border-[1.5px] border-border/30 flex-col gap-2">
+          <View className="h-3 bg-zinc-800/50 w-2/3" />
+          <View className="h-2 bg-zinc-800/40 w-full" />
+          <View className="h-2 bg-zinc-800/40 w-full" />
+          <View className="h-2 bg-zinc-800/40 w-5/6" />
+        </View>
+      </View>
     );
   }
 
   const previewData = data || { image: null, title: null, description: null };
 
   return (
-    <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 select-none">
-      {previewData.image ? (
-        <div className="w-full aspect-[21/9] border-[1.5px] border-border bg-black overflow-hidden flex items-center justify-center">
-          <img
-            src={previewData.image}
-            alt="Link Preview"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+    <View className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex-col gap-2">
+      {previewData.image && !imageError ? (
+        <View className="w-full aspect-[21/9] border-[1.5px] border-border bg-black overflow-hidden flex items-center justify-center">
+          <Image
+            source={{ uri: previewData.image }}
+            accessibilityLabel="Link Preview"
+            className="w-full h-full"
+            resizeMode="cover"
+            onError={() => setImageError(true)}
           />
-        </div>
+        </View>
       ) : (
-        <div className="w-full aspect-[21/9] border-[1.5px] border-border/30 bg-[#27272a]/30" />
+        <View className="w-full aspect-[21/9] border-[1.5px] border-border/30 bg-[#27272a]/30" />
       )}
-      <div className="dark:bg-[#18181b]/5 p-2 border-[1.5px] border-border/30 flex flex-col gap-2 min-h-[58px] justify-between">
+      <View className="p-2 border-[1.5px] border-border/30 flex-col gap-2 min-h-[58px] justify-between">
         {previewData.title ? (
-          <h5 className="font-bold text-[13px] text-primary truncate leading-normal">
+          <Text className="font-bold text-[13px] text-primary" numberOfLines={1}>
             {previewData.title}
-          </h5>
+          </Text>
         ) : (
-          <div className="h-3 bg-[#27272a]/40 w-2/3 my-0.5" />
+          <View className="h-3 bg-[#27272a]/40 w-2/3 my-0.5" />
         )}
         {previewData.description ? (
-          <p className="text-[12px] text-primary line-clamp-2 leading-relaxed">
+          <Text className="text-[12px] text-primary leading-relaxed" numberOfLines={2}>
             {previewData.description}
-          </p>
+          </Text>
         ) : (
-          <div className="flex flex-col gap-1.5 py-0.5">
-            <div className="h-2 bg-[#27272a]/30 w-6/6" />
-            <div className="h-2 bg-[#27272a]/30 w-6/6" />
-            <div className="h-2 bg-[#27272a]/20 w-2/3" />
-          </div>
+          <View className="flex-col gap-1.5 py-0.5">
+            <View className="h-2 bg-[#27272a]/30 w-full" />
+            <View className="h-2 bg-[#27272a]/30 w-full" />
+            <View className="h-2 bg-[#27272a]/20 w-2/3" />
+          </View>
         )}
-      </div>
-    </div>
+      </View>
+    </View>
   );
 };

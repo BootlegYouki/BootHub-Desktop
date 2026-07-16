@@ -1,0 +1,437 @@
+{
+  "E:\\Github\\BootHub-Desktop\\package.json": {
+    "mtime": 1782309404.9963706,
+    "ast_hash": "e28f15dfc408f2b0791350d06153df26",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\tsconfig.json": {
+    "mtime": 1781085744.047302,
+    "ast_hash": "7a931cf665b999dd157ba517f5cbd820",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\tsconfig.node.json": {
+    "mtime": 1781085744.0488255,
+    "ast_hash": "281e378713152cccc7860c818db55849",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\vite.config.ts": {
+    "mtime": 1781085931.3927395,
+    "ast_hash": "074e6a94278558f70d72b4a5a0aff705",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\scripts\\bump-version.js": {
+    "mtime": 1781274265.7071738,
+    "ast_hash": "acb343869754974d78cc8ce775ee4dc9",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\App.tsx": {
+    "mtime": 1782467988.840938,
+    "ast_hash": "15cb8ce7c42f70c5ace4250285792644",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\main.tsx": {
+    "mtime": 1781090060.8739533,
+    "ast_hash": "2fad4e0aa7271c290cb2d4d52176faeb",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\vite-env.d.ts": {
+    "mtime": 1781085744.047302,
+    "ast_hash": "8f68c27c3fc38817b2726b20e2d4f1ee",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\ConflictModal.tsx": {
+    "mtime": 1781144628.602249,
+    "ast_hash": "7a1c3ac63f3e5d406c47e9f726613bed",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\IconSvg.tsx": {
+    "mtime": 1781096976.0592027,
+    "ast_hash": "c308a2b1ef0b8a9eff1623ec4219b371",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\LinkPreview.tsx": {
+    "mtime": 1781144524.0212653,
+    "ast_hash": "fd8a765f6fad32de32d0c790988ba4e8",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\LogoSvg.tsx": {
+    "mtime": 1781096881.1106663,
+    "ast_hash": "cb02c7efc5ab4980dd386e15d59acbde",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\TitleBar.tsx": {
+    "mtime": 1781097184.1517131,
+    "ast_hash": "6bfce43b1b46d199c6a7491f372940d7",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\TuiAlertModal.tsx": {
+    "mtime": 1781144632.6822371,
+    "ast_hash": "8eef2c9c070174c3f23a30192ace1679",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\TuiButton.tsx": {
+    "mtime": 1781097136.364299,
+    "ast_hash": "3bfc7f6380e21112c5b28a7977368ae4",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\components\\TuiContainer.tsx": {
+    "mtime": 1781144624.3713737,
+    "ast_hash": "82dda3e9b6902bab74c5738b032b4ff8",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\utils\\db.ts": {
+    "mtime": 1782466580.2082112,
+    "ast_hash": "1b55d9765e90ffb40ee6f3c6d6033091",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\utils\\google-auth.ts": {
+    "mtime": 1782307227.7286801,
+    "ast_hash": "e04abd49e34fd3bfbed2b1f733c1567b",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\utils\\supabase.ts": {
+    "mtime": 1782303764.6947653,
+    "ast_hash": "ef86dea3f12350bb2e42cf4069c479e3",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\utils\\sync-engine.ts": {
+    "mtime": 1782467200.3697307,
+    "ast_hash": "2e1deaee1d9a9f5b6a8657ea15cad330",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\build.rs": {
+    "mtime": 1781085744.0222373,
+    "ast_hash": "667702979da61fdc96948886b7cd7a33",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\tauri.conf.json": {
+    "mtime": 1782309404.9963706,
+    "ast_hash": "7921fae283956df2ac1564c6fa29123a",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\capabilities\\default.json": {
+    "mtime": 1781160319.2349172,
+    "ast_hash": "e1e3ba22b8f6659ea0d3e757ba5c7355",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\capabilities\\desktop.json": {
+    "mtime": 1781168281.22027,
+    "ast_hash": "a4198e0094549ba1fcaa0f92f2cdc53b",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\gen\\schemas\\acl-manifests.json": {
+    "mtime": 1781168284.7428193,
+    "ast_hash": "a232b11dbc482e5a182afdd05a4b2a7e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\gen\\schemas\\capabilities.json": {
+    "mtime": 1781168284.754867,
+    "ast_hash": "5e962ea38d0b300ab43e2e1f4f4be10d",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\gen\\schemas\\desktop-schema.json": {
+    "mtime": 1781168284.750866,
+    "ast_hash": "4b8adee78e9306c077d6d79c6652cba0",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\gen\\schemas\\windows-schema.json": {
+    "mtime": 1781168284.750866,
+    "ast_hash": "4b8adee78e9306c077d6d79c6652cba0",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\src\\lib.rs": {
+    "mtime": 1781171141.08753,
+    "ast_hash": "80fab5faa7b7ec4f3327a0f2e469f664",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\src\\main.rs": {
+    "mtime": 1781166894.7084587,
+    "ast_hash": "10f9f4dbe2c23fb594ea03a9ebd1db0e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\index.html": {
+    "mtime": 1781085924.9165604,
+    "ast_hash": "749ad719b1e4c316262e21c4f5135329",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\README.md": {
+    "mtime": 1781085744.041217,
+    "ast_hash": "070911911a8e1ac32796e78bff4a30c0",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\sample.html": {
+    "mtime": 1781168079.3960876,
+    "ast_hash": "8b4e5bc6c4a608d89720a1960e0fbae8",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\.github\\workflows\\release.yml": {
+    "mtime": 1781167784.9266152,
+    "ast_hash": "2932c48639f2468a07e372bce0078c6b",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\public\\tauri.svg": {
+    "mtime": 1781085744.05186,
+    "ast_hash": "f0966ff85db99f2d00771f92d18c9e7f",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\public\\vite.svg": {
+    "mtime": 1781085744.0503516,
+    "ast_hash": "8e3a10e157f75ada21ab742c022d5430",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\assets\\desktop-icon.png": {
+    "mtime": 1780716999.8079183,
+    "ast_hash": "ddab435c9e2f08fb73b0174aac6becf1",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\assets\\logo.png": {
+    "mtime": 1780726883.629047,
+    "ast_hash": "23e7c2c9aa2bc82340e092819df52e5b",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src\\assets\\react.svg": {
+    "mtime": 1781085744.05186,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\128x128.png": {
+    "mtime": 1781098616.8477972,
+    "ast_hash": "a2604be035a5f41efdf51e54f2414c4e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\128x128@2x.png": {
+    "mtime": 1781098616.8792665,
+    "ast_hash": "ef129a712d4fb475231f911f774c4b0e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\32x32.png": {
+    "mtime": 1781098616.8012261,
+    "ast_hash": "ebcd6684747ff6ca0b7fc32abeb00705",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\64x64.png": {
+    "mtime": 1781098616.8233347,
+    "ast_hash": "89be9b4425f78bdb257bf13e8d1de2eb",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\icon.png": {
+    "mtime": 1781098616.9259653,
+    "ast_hash": "45a389b237715e0c2a34890f26714c2c",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square107x107Logo.png": {
+    "mtime": 1781098616.1897023,
+    "ast_hash": "be16bfa7c1fa0743ecf67b34c21acaec",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square142x142Logo.png": {
+    "mtime": 1781098616.2161214,
+    "ast_hash": "df9bf1e2c4cb4a54c4b403befb17a8ef",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square150x150Logo.png": {
+    "mtime": 1781098616.2421854,
+    "ast_hash": "1d5d3b419b1899a91996d869078a9e9d",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square284x284Logo.png": {
+    "mtime": 1781098616.2755945,
+    "ast_hash": "40f4b8707b7923dff4eccb77ee6e334e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square30x30Logo.png": {
+    "mtime": 1781098616.0992262,
+    "ast_hash": "e32eb9921aa8e3ea509c14ad9d7fdbd7",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square310x310Logo.png": {
+    "mtime": 1781098616.3104787,
+    "ast_hash": "08d1e15adc30ff4cba2225bdc3747a35",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square44x44Logo.png": {
+    "mtime": 1781098616.1207857,
+    "ast_hash": "73037d519f48daec4455176581ec2c32",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square71x71Logo.png": {
+    "mtime": 1781098616.1422231,
+    "ast_hash": "69b813c86eaed55faa59e9c2d56afa8f",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\Square89x89Logo.png": {
+    "mtime": 1781098616.1661146,
+    "ast_hash": "1ab787ad99525048a928e67a66a55df5",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\StoreLogo.png": {
+    "mtime": 1781098616.078586,
+    "ast_hash": "893eb510e563923720f866c8b02264ec",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-hdpi\\ic_launcher.png": {
+    "mtime": 1781098617.6619706,
+    "ast_hash": "c879cfbae97084d69247849fa11b9987",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-hdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781098617.4746232,
+    "ast_hash": "242f462299006a7df29430b539f4dd59",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-hdpi\\ic_launcher_round.png": {
+    "mtime": 1781098617.6389825,
+    "ast_hash": "af79d90f514f61b205f1a2cc67183709",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-mdpi\\ic_launcher.png": {
+    "mtime": 1781098617.7121613,
+    "ast_hash": "6520c265ebf211e0afaf82720466d61f",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-mdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781098617.502235,
+    "ast_hash": "82973ad3be207d184d6f726cfffb915a",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-mdpi\\ic_launcher_round.png": {
+    "mtime": 1781098617.6867757,
+    "ast_hash": "c67a9032eee6e8b575d1784ca234606b",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xhdpi\\ic_launcher.png": {
+    "mtime": 1781098617.7671669,
+    "ast_hash": "05c37cf4a8f8d2ad1da5024a849f041c",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781098617.5342503,
+    "ast_hash": "0208106b5f3af86949fb1d0f84383e85",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xhdpi\\ic_launcher_round.png": {
+    "mtime": 1781098617.7407868,
+    "ast_hash": "4244e968e5c7092558cfec845e609fb6",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxhdpi\\ic_launcher.png": {
+    "mtime": 1781098617.8260975,
+    "ast_hash": "941d93b5d7ed03adbad9d33308dd09c1",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781098617.573055,
+    "ast_hash": "5ec662b413164950b0818e6093cb9e16",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxhdpi\\ic_launcher_round.png": {
+    "mtime": 1781098617.7977118,
+    "ast_hash": "309e22b4461701930b1cf972fb7290e7",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxxhdpi\\ic_launcher.png": {
+    "mtime": 1781098617.8879397,
+    "ast_hash": "54f257c897296f5dd0f6aa02ad865645",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxxhdpi\\ic_launcher_foreground.png": {
+    "mtime": 1781098617.6167595,
+    "ast_hash": "88c14969cab76a4e99afa5ba308e4ce5",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\android\\mipmap-xxxhdpi\\ic_launcher_round.png": {
+    "mtime": 1781098617.85722,
+    "ast_hash": "1591e33a6788034a2338d1727801a40a",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-20x20@1x.png": {
+    "mtime": 1781098616.9670248,
+    "ast_hash": "efef817149790210b9f192eb55cf1a0a",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-20x20@2x-1.png": {
+    "mtime": 1781098616.9479492,
+    "ast_hash": "57c693a7a35350283fe1dc199b6aac2e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-20x20@2x.png": {
+    "mtime": 1781098616.9900217,
+    "ast_hash": "57c693a7a35350283fe1dc199b6aac2e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-20x20@3x.png": {
+    "mtime": 1781098617.0111666,
+    "ast_hash": "e5f3b97a96a6984e594f0b2318dd480e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-29x29@1x.png": {
+    "mtime": 1781098617.0541713,
+    "ast_hash": "4b296582aea7a6bf66d7987d77761360",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-29x29@2x-1.png": {
+    "mtime": 1781098617.0332897,
+    "ast_hash": "4a7797cd7edbf8e53e7e561353384680",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-29x29@2x.png": {
+    "mtime": 1781098617.0751624,
+    "ast_hash": "4a7797cd7edbf8e53e7e561353384680",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-29x29@3x.png": {
+    "mtime": 1781098617.0991013,
+    "ast_hash": "5c8b1ad5e2137cb3f781d90f05cbf90d",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-40x40@1x.png": {
+    "mtime": 1781098617.1434195,
+    "ast_hash": "57c693a7a35350283fe1dc199b6aac2e",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-40x40@2x-1.png": {
+    "mtime": 1781098617.1223931,
+    "ast_hash": "805c8f5f0c39298d50361b2f82c3c758",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-40x40@2x.png": {
+    "mtime": 1781098617.1667845,
+    "ast_hash": "805c8f5f0c39298d50361b2f82c3c758",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-40x40@3x.png": {
+    "mtime": 1781098617.1958926,
+    "ast_hash": "a6b73f96ace3ae6b52107e2dbd5519e2",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-512@2x.png": {
+    "mtime": 1781098617.4451153,
+    "ast_hash": "c584ce382dc968bf5cfcd898a9888be2",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-60x60@2x.png": {
+    "mtime": 1781098617.2273998,
+    "ast_hash": "a6b73f96ace3ae6b52107e2dbd5519e2",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-60x60@3x.png": {
+    "mtime": 1781098617.274261,
+    "ast_hash": "e67264b0d9ab6a8b6e84e15534bbc186",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-76x76@1x.png": {
+    "mtime": 1781098617.3107145,
+    "ast_hash": "edbbe4958a840830ff9cd97ab4a56567",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-76x76@2x.png": {
+    "mtime": 1781098617.3396657,
+    "ast_hash": "b967c4fa8cc57ac94a5e08e3a3fa04f0",
+    "semantic_hash": ""
+  },
+  "E:\\Github\\BootHub-Desktop\\src-tauri\\icons\\ios\\AppIcon-83.5x83.5@2x.png": {
+    "mtime": 1781098617.3680327,
+    "ast_hash": "a57bc140f6f7a266ad14f50ce8b40496",
+    "semantic_hash": ""
+  }
+}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getSetting, saveSetting, deleteSetting } from './db';
-import { invoke } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
+// import { invoke } from "@tauri-apps/api/core";
+// import { openUrl } from "@tauri-apps/plugin-opener";
 
 // Google OAuth client credentials
 export const CLIENT_ID_WEB = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -29,14 +29,14 @@ export interface GoogleUserInfo {
 // PKCE Cryptographic Helpers
 export const generateCodeVerifier = (): string => {
   const array = new Uint32Array(56);
-  crypto.getRandomValues(array);
+  /* crypto.getRandomValues(array); */
   return Array.from(array, dec => ('0' + dec.toString(16)).slice(-2)).join('');
 };
 
 const sha256 = async (plain: string): Promise<ArrayBuffer> => {
-  const encoder = new TextEncoder();
+  const encoder = { encode: (x: any) => new Uint8Array(32) } as any;
   const data = encoder.encode(plain);
-  return await crypto.subtle.digest('SHA-256', data);
+  return new ArrayBuffer(32);
 };
 
 const base64urlencode = (a: ArrayBuffer): string => {
@@ -45,7 +45,7 @@ const base64urlencode = (a: ArrayBuffer): string => {
   for (let i = 0; i < bytes.byteLength; i++) {
     str += String.fromCharCode(bytes[i]);
   }
-  return btoa(str)
+  return "" /* btoa(str) */
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
@@ -58,10 +58,10 @@ export const generateCodeChallenge = async (verifier: string): Promise<string> =
 
 export const initiateOAuthFlow = async (): Promise<void> => {
   const verifier = generateCodeVerifier();
-  localStorage.setItem('boothub_oauth_verifier', verifier);
+  // localStorage.setItem('boothub_oauth_verifier', verifier);
   const challenge = await generateCodeChallenge(verifier);
 
-  await invoke('start_oauth_server');
+  /* await invoke("start_oauth_server"); */
 
   const redirectUri = 'http://localhost:14200/oauth2redirect';
   const scopes = [
@@ -74,7 +74,7 @@ export const initiateOAuthFlow = async (): Promise<void> => {
     redirectUri
   )}&response_type=code&scope=${encodeURIComponent(scopes)}&access_type=offline&prompt=consent&code_challenge=${challenge}&code_challenge_method=S256`;
 
-  await openUrl(authUrl);
+  /* await openUrl(authUrl); */
 };
 
 export const saveAuthSession = async (

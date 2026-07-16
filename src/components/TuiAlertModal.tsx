@@ -1,3 +1,4 @@
+import { View, Text, Modal } from 'react-native';
 import React from 'react';
 import { TuiContainer } from './TuiContainer';
 import { TuiButton } from './TuiButton';
@@ -25,37 +26,41 @@ export const TuiAlertModal: React.FC<TuiAlertModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!visible) return null;
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 animate-in fade-in duration-100 select-none">
-      <div className="w-full max-w-sm">
-        <TuiContainer label={title} disableHover={true}>
-          <div className="py-2">
-            <p className="text-sm font-mono leading-relaxed mb-6 text-foreground break-words whitespace-pre-wrap">
-              {message}
-            </p>
-            <div className="flex gap-4">
-              {type === 'confirm' && onCancel && (
-                <TuiButton
-                  onPress={onCancel}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {cancelText}
-                </TuiButton>
-              )}
-              <TuiButton
-                onPress={onConfirm}
-                variant={isDestructive ? 'destructive' : 'accent'}
-                className="flex-1"
-              >
-                {confirmText}
-              </TuiButton>
-            </div>
-          </div>
-        </TuiContainer>
-      </div>
-    </div>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onCancel || onConfirm}
+    >
+      <View className="flex-1 items-center justify-center bg-black/70 p-4">
+        <View className="w-full max-w-sm">
+          <TuiContainer label={title} disableHover={true}>
+            <View className="py-2">
+              <Text className="text-sm font-mono leading-relaxed mb-6 text-foreground break-words">
+                {message}
+              </Text>
+              <View className="flex-row gap-4">
+                {type === 'confirm' && onCancel && (
+                  <View className="flex-1">
+                    <TuiButton onPress={onCancel} variant="outline">
+                      {cancelText}
+                    </TuiButton>
+                  </View>
+                )}
+                <View className="flex-1">
+                  <TuiButton
+                    onPress={onConfirm}
+                    variant={isDestructive ? 'destructive' : 'accent'}
+                  >
+                    {confirmText}
+                  </TuiButton>
+                </View>
+              </View>
+            </View>
+          </TuiContainer>
+        </View>
+      </View>
+    </Modal>
   );
 };

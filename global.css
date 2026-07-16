@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: "Outfit", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+    
+    --color-primary: #a855f7;
+    --color-primary-foreground: #000000;
+    --color-background: #09090b;
+    --color-card: #18181b;
+    --color-border: #52525b;
+    --color-foreground: #f4f4f5;
+    --color-muted: #71717a;
+    --color-destructive: #ef4444;
+  }
+}

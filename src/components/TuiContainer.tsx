@@ -1,11 +1,12 @@
+import { View, Text, Pressable, StyleProp, ViewStyle } from 'react-native';
 import React from 'react';
 
 interface TuiContainerProps {
   children: React.ReactNode;
   label: string;
   badge?: string;
-  style?: React.CSSProperties;
-  contentStyle?: React.CSSProperties;
+  style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
   accentBorder?: boolean;
   onBadgePress?: () => void;
   noPadding?: boolean;
@@ -29,43 +30,44 @@ export const TuiContainer: React.FC<TuiContainerProps> = ({
     ? 'border-primary'
     : disableHover
       ? 'border-border'
-      : 'border-border hover:border-foreground';
+      : 'border-border';
 
   const legendClass = accentBorder
     ? 'text-primary'
     : 'text-foreground';
 
+  const ContainerElement = onPress ? Pressable : View;
+
   return (
-    <div
-      onClick={onPress}
-      className={`group w-full min-w-0 relative border-[1.5px] bg-card text-foreground ${borderClass} ${
-        onPress ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]' : ''
-      }`}
+    <ContainerElement
+      onPress={onPress}
+      className={`w-full min-w-0 relative border-[1.5px] bg-card text-foreground ${borderClass}`}
       style={style}
     >
       {(label || badge) && (
-        <div className={`absolute -top-[10px] left-4 px-2 bg-card font-bold text-xs select-none flex items-center gap-2 z-10 ${legendClass}`}>
-          {label}
+        <View className="absolute -top-[10px] left-4 px-2 bg-card flex-row items-center gap-2 z-10">
+          <Text className={`font-bold text-xs ${legendClass}`}>{label}</Text>
           {badge && (
-            <span
-              onClick={(e) => {
+            <Pressable
+              onPress={(e) => {
                 if (onBadgePress) {
                   e.stopPropagation();
                   onBadgePress();
                 }
               }}
-              className={`text-xs px-1 border-[1px] ${
-                onBadgePress ? 'cursor-pointer hover:bg-primary/20' : ''
-              } ${badge === 'ERROR' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
             >
-              {badge}
-            </span>
+              <Text
+                className={`text-xs px-1 border-[1px] ${badge === 'ERROR' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+              >
+                {badge}
+              </Text>
+            </Pressable>
           )}
-        </div>
+        </View>
       )}
-      <div className={noPadding ? '' : 'p-3'} style={contentStyle}>
+      <View className={noPadding ? '' : 'p-3'} style={contentStyle}>
         {children}
-      </div>
-    </div>
+      </View>
+    </ContainerElement>
   );
 };

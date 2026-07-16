@@ -1,15 +1,15 @@
+import { View, Text, Pressable, StyleProp, ViewStyle, GestureResponderEvent, ActivityIndicator } from 'react-native';
 import React from 'react';
 
 interface TuiButtonProps {
   children: React.ReactNode;
-  onPress?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  style?: React.CSSProperties;
+  onPress?: (e: GestureResponderEvent) => void;
+  style?: StyleProp<ViewStyle>;
   className?: string;
   variant?: 'default' | 'accent' | 'destructive' | 'outline';
   disabled?: boolean;
   loading?: boolean;
-  type?: 'button' | 'submit' | 'reset';
-  title?: string;
+  accessibilityLabel?: string;
 }
 
 export const TuiButton: React.FC<TuiButtonProps> = ({
@@ -20,40 +20,56 @@ export const TuiButton: React.FC<TuiButtonProps> = ({
   variant = 'default',
   disabled = false,
   loading = false,
-  type = 'submit',
-  title,
+  accessibilityLabel,
 }) => {
   const getVariantClasses = () => {
     if (disabled) {
-      return 'bg-[#18181b] border-[#27272a] text-[#52525b] cursor-not-allowed';
+      return 'bg-[#18181b] border-[#27272a] opacity-50';
     }
 
     switch (variant) {
       case 'accent':
-        return 'bg-primary border-primary text-primary-foreground hover:bg-transparent hover:text-primary active:bg-primary/20';
+        return 'bg-primary border-primary active:bg-primary/20';
       case 'destructive':
-        return 'bg-destructive border-destructive text-white hover:bg-transparent hover:text-destructive active:bg-destructive/20';
+        return 'bg-destructive border-destructive active:bg-destructive/20';
       case 'outline':
-        return 'bg-transparent border-primary text-primary hover:bg-primary/10 active:bg-primary/20';
+        return 'bg-transparent border-primary active:bg-primary/20';
       default:
-        return 'bg-transparent border-primary text-foreground hover:bg-primary hover:text-primary-foreground active:bg-primary/80';
+        return 'bg-transparent border-primary active:bg-primary/80';
     }
   };
 
+  const getVariantTextClasses = () => {
+    if (disabled) {
+      return 'text-[#52525b]';
+    }
+    switch (variant) {
+      case 'accent':
+      case 'destructive':
+        return 'text-primary-foreground';
+      case 'outline':
+      default:
+        return 'text-primary';
+    }
+  }
+
   return (
-    <button
-      type={type}
-      title={title}
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
       disabled={disabled || loading}
-      onClick={onPress}
-      className={`border-[1.5px] font-bold text-center text-sm py-2 px-4 cursor-pointer flex items-center justify-center min-h-[40px] select-none w-full ${getVariantClasses()} ${className}`}
+      onPress={onPress}
+      className={`border-[1.5px] py-2 px-4 flex-row items-center justify-center min-h-[40px] w-full ${getVariantClasses()} ${className}`}
       style={style}
     >
       {loading ? (
-        <span className="inline-block animate-spin border-2 border-current border-t-transparent rounded-full w-4 h-4" />
+        <ActivityIndicator size="small" color={variant === 'accent' || variant === 'destructive' ? '#000' : '#a855f7'} />
       ) : (
-        children
+        typeof children === 'string' ? (
+          <Text className={`font-bold text-center text-sm ${getVariantTextClasses()}`}>{children}</Text>
+        ) : (
+          children
+        )
       )}
-    </button>
+    </Pressable>
   );
 };
