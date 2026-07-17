@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Link2,
   FileText,
@@ -6,15 +6,12 @@ import {
   Paperclip,
   Search,
   FolderPlus,
-  Folder,
-  ArrowUpRight,
   Plus,
   X,
   Sun,
   Moon,
 } from 'lucide-react';
 import { TuiContainer } from './components/TuiContainer';
-import { LinkPreview } from './components/LinkPreview';
 import { TuiButton } from './components/TuiButton';
 import { ConflictModal } from './components/ConflictModal';
 import { TuiAlertModal } from './components/TuiAlertModal';
@@ -24,6 +21,10 @@ import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { check } from '@tauri-apps/plugin-updater';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { objectUrlCache, revokeCachedObjectUrl } from './components/PhotoThumbnail';
+import { ImagePreview } from './components/ImagePreview';
+import { PhotoPreviewModal } from './components/PhotoPreviewModal';
+import { ItemCard } from './components/ItemCard';
 import {
   initiateOAuthFlow,
   exchangeCodeForTokens,
@@ -76,169 +77,6 @@ const ACCENT_COLORS = {
 type AccentTheme = 'classic' | 'gray' | 'amber' | 'green' | 'rose' | 'cobalt';
 type TabType = 'link' | 'text' | 'photo' | 'file';
 
-interface PhotoThumbnailProps {
-  itemId: string;
-}
-
-// Memory cache for object URLs of photo/file items to avoid flicker & load instantly
-const objectUrlCache = new Map<string, string>();
-
-const getCachedObjectUrl = (itemId: string, blob: Blob): string => {
-  let cached = objectUrlCache.get(itemId);
-  if (!cached) {
-    cached = URL.createObjectURL(blob);
-    objectUrlCache.set(itemId, cached);
-  }
-  return cached;
-};
-
-const revokeCachedObjectUrl = (itemId: string) => {
-  const cached = objectUrlCache.get(itemId);
-  if (cached) {
-    URL.revokeObjectURL(cached);
-    objectUrlCache.delete(itemId);
-  }
-};
-
-const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
-  const cached = objectUrlCache.get(itemId);
-  const [imgUrl, setImgUrl] = useState<string | null>(cached || null);
-  const [loading, setLoading] = useState(!cached);
-
-  useEffect(() => {
-    if (cached) return;
-
-    let active = true;
-
-    const loadImg = async () => {
-      try {
-        const blob = await getItemFile(itemId);
-        if (blob && active) {
-          const url = getCachedObjectUrl(itemId, blob);
-          setImgUrl(url);
-        }
-      } catch (err) {
-        console.error('Failed to load thumbnail:', err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    loadImg();
-
-    return () => {
-      active = false;
-    };
-  }, [itemId, cached]);
-
-  if (loading) {
-    return (
-      <div className="w-full h-full aspect-video bg-card flex items-center justify-center select-none">
-        <span className="text-[10px] text-muted font-bold animate-pulse">[ Loading... ]</span>
-      </div>
-    );
-  }
-
-  if (!imgUrl) {
-    return (
-      <div className="w-full h-full aspect-video bg-black flex items-center justify-center select-none">
-        <ImageIcon size={24} className="text-zinc-700" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-full aspect-video bg-black flex items-center justify-center overflow-hidden select-none">
-      <img
-        src={imgUrl}
-        alt="thumbnail"
-        className="w-full h-full object-cover"
-      />
-    </div>
-  );
-};
-
-interface ImagePreviewProps {
-  file: File;
-}
-
-const ImagePreview: React.FC<ImagePreviewProps> = ({ file }) => {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  if (!url) return null;
-  return <img src={url} alt="preview" className="w-full h-full object-cover" />;
-};
-
-interface PhotoPreviewModalProps {
-  item: DumpItem;
-  onClose: () => void;
-  onContextMenu: (e: React.MouseEvent, item: DumpItem) => void;
-  isContextMenuVisible: boolean;
-}
-
-const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({ item, onClose, onContextMenu, isContextMenuVisible }) => {
-  const cached = objectUrlCache.get(item.id);
-  const [imgUrl, setImgUrl] = useState<string | null>(cached || null);
-  const [loading, setLoading] = useState(!cached);
-
-  useEffect(() => {
-    if (cached) return;
-
-    let active = true;
-
-    const loadImg = async () => {
-      try {
-        const blob = await getItemFile(item.id);
-        if (blob && active) {
-          const url = getCachedObjectUrl(item.id, blob);
-          setImgUrl(url);
-        }
-      } catch (err) {
-        console.error('Failed to load preview:', err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    loadImg();
-
-    return () => {
-      active = false;
-    };
-  }, [item.id, cached]);
-
-  return (
-    <div
-      onClick={() => {
-        if (!isContextMenuVisible) {
-          onClose();
-        }
-      }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-4 select-none animate-in fade-in duration-150"
-    >
-      {loading ? (
-        <span className="text-sm text-muted font-bold animate-pulse font-mono">[ Loading Image... ]</span>
-      ) : imgUrl ? (
-        <img
-          src={imgUrl}
-          alt="preview"
-          className="max-w-[80vw] max-h-[80vh] object-contain select-none shadow-2xl animate-in zoom-in-95 duration-150"
-          onContextMenu={(e) => onContextMenu(e, item)}
-        />
-      ) : (
-        <span className="text-sm text-destructive font-bold font-mono bg-[#18181b] border-[1.5px] border-border p-4 shadow-xl">
-          Failed to load preview image.
-        </span>
-      )}
-    </div>
-  );
-};
 
 export default function App() {
   const dragCounter = React.useRef(0);
@@ -1488,175 +1326,81 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [filteredList, selectedIds, clipboard, activeFolderId, items]);
 
-  const renderCard = (item: DumpItem) => {
-    const isSyncing = item.syncState === 'syncing';
-    const progress = uploadProgress[item.id] || 0;
-    const isSelected = selectedIds.has(item.id);
-    const isCut = clipboard?.type === 'cut' && clipboard.itemIds.has(item.id);
 
-    return (
-      <div
-        key={item.id}
-        data-id={item.id}
-        className={`item-card relative animate-in fade-in duration-200 select-none transition-all ${isSelected ? 'bg-primary/5' : ''
-          } ${isCut ? 'opacity-40 border-dashed border-primary/50' : ''}`}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+  const handleCardContextMenu = useCallback((e: React.MouseEvent, item: DumpItem) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-          let newSelected = new Set(selectedIds);
-          if (!selectedIds.has(item.id)) {
-            newSelected = new Set([item.id]);
-            setSelectedIds(newSelected);
-          }
+    let newSelected = new Set(selectedIds);
+    if (!selectedIds.has(item.id)) {
+      newSelected = new Set([item.id]);
+      setSelectedIds(newSelected);
+    }
 
-          setContextMenu({
-            visible: true,
-            x: e.clientX,
-            y: e.clientY,
-            item,
-          });
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          const isAlreadySelected = selectedIds.has(item.id) && selectedIds.size === 1;
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      item,
+    });
+  }, [selectedIds]);
 
-          const newSelected = new Set(selectedIds);
-          if (e.ctrlKey || e.metaKey) {
-            if (newSelected.has(item.id)) {
-              newSelected.delete(item.id);
-            } else {
-              newSelected.add(item.id);
-            }
-          } else if (e.shiftKey && selectedIds.size > 0) {
-            // Shift click range selection
-            const listIds = filteredList.map(x => x.id);
-            const currentIdx = listIds.indexOf(item.id);
-            const lastSelectedId = Array.from(selectedIds).pop();
-            const lastIdx = lastSelectedId ? listIds.indexOf(lastSelectedId) : -1;
+  const handleCardClick = useCallback((e: React.MouseEvent, item: DumpItem) => {
+    e.stopPropagation();
+    const isAlreadySelected = selectedIds.has(item.id) && selectedIds.size === 1;
 
-            if (lastIdx !== -1) {
-              const start = Math.min(lastIdx, currentIdx);
-              const end = Math.max(lastIdx, currentIdx);
-              for (let i = start; i <= end; i++) {
-                newSelected.add(listIds[i]);
-              }
-            } else {
-              newSelected.add(item.id);
-            }
-          } else {
-            newSelected.clear();
-            newSelected.add(item.id);
-          }
-          setSelectedIds(newSelected);
+    const newSelected = new Set(selectedIds);
+    if (e.ctrlKey || e.metaKey) {
+      if (newSelected.has(item.id)) {
+        newSelected.delete(item.id);
+      } else {
+        newSelected.add(item.id);
+      }
+    } else if (e.shiftKey && selectedIds.size > 0) {
+      // Shift click range selection
+      const listIds = filteredList.map(x => x.id);
+      const currentIdx = listIds.indexOf(item.id);
+      const lastSelectedId = Array.from(selectedIds).pop();
+      const lastIdx = lastSelectedId ? listIds.indexOf(lastSelectedId) : -1;
 
-          if (isAlreadySelected) {
-            if (item.type === 'folder') {
-              setActiveFolderId(item.id);
-            } else if (item.type === 'photo') {
-              setPreviewPhotoId(item.id);
-            }
-          }
+      if (lastIdx !== -1) {
+        const start = Math.min(lastIdx, currentIdx);
+        const end = Math.max(lastIdx, currentIdx);
+        for (let i = start; i <= end; i++) {
+          newSelected.add(listIds[i]);
+        }
+      } else {
+        newSelected.add(item.id);
+      }
+    } else {
+      newSelected.clear();
+      newSelected.add(item.id);
+    }
+    setSelectedIds(newSelected);
 
-          if (item.type === 'link') {
-            const url = item.value.startsWith('http') ? item.value : `https://${item.value}`;
-            openUrl(url).catch((err) => console.error('Failed to open URL:', err));
-          }
-        }}
-        onDoubleClick={(e) => {
-          if (item.type === 'folder') {
-            e.stopPropagation();
-            setActiveFolderId(item.id);
-          } else if (item.type === 'photo') {
-            e.stopPropagation();
-            setPreviewPhotoId(item.id);
-          }
-        }}
-      >
-        {item.type === 'photo' ? (
-          <div
-            className={`w-full h-full relative border-[1.5px] bg-card transition-all ${isSelected
-                ? 'border-primary shadow-[0_0_8px_rgba(168,85,247,0.3)]'
-                : 'border-border hover:border-foreground'
-              }`}
-            title="Double click to view full preview"
-          >
-            {/* Sync Progress Bar */}
-            {isSyncing && (
-              <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20 z-20">
-                <div
-                  className="h-full bg-primary transition-all duration-150"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
-            )}
-            <PhotoThumbnail itemId={item.id} />
-          </div>
-        ) : (
-          <TuiContainer
-            label={item.type === 'folder' ? '' : item.label}
-            accentBorder={isSyncing || isSelected}
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            contentStyle={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
-          >
-            {/* Sync Progress Bar */}
-            {isSyncing && (
-              <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20">
-                <div
-                  className="h-full bg-primary transition-all duration-150"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
-            )}
+    if (isAlreadySelected) {
+      if (item.type === 'folder') {
+        setActiveFolderId(item.id);
+      } else if (item.type === 'photo') {
+        setPreviewPhotoId(item.id);
+      }
+    }
 
-            <div className="flex flex-col gap-3 h-full justify-between flex-1">
-              {/* Content area */}
-              {item.type === 'folder' ? (
-                <div
-                  className="flex items-center gap-3 text-left w-full hover:text-primary group"
-                >
-                  <Folder size={16} className="text-primary fill-primary/10 group-hover:scale-110 transition-transform duration-150" />
-                  <span className="font-bold text-sm leading-tight">{getFolderName(item)}</span>
-                </div>
-              ) : item.type === 'link' ? (
-                <div className="flex flex-col gap-1">
-                  <a
-                    href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                    }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline text-sm font-bold flex items-center justify-between gap-1.5 w-full min-w-0"
-                  >
-                    <span className="truncate flex-1 min-w-0">
-                      {item.value}
-                    </span>
-                    <ArrowUpRight size={14} className="shrink-0" />
-                  </a>
-                  <LinkPreview url={item.value.startsWith('http') ? item.value : `https://${item.value}`} />
-                </div>
-              ) : item.type === 'text' ? (
-                <p className="text-xs leading-relaxed text-foreground break-all whitespace-pre-wrap select-text">
-                  {item.value}
-                </p>
-              ) : (
-                // File
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-bold leading-tight truncate">
-                    {JSON.parse(item.value).name}
-                  </p>
-                  <p className="text-[10px] text-muted">
-                    {(JSON.parse(item.value).size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-              )}
-            </div>
-          </TuiContainer>
-        )}
-      </div>
-    );
-  };
+    if (item.type === 'link') {
+      const url = item.value.startsWith('http') ? item.value : `https://${item.value}`;
+      openUrl(url).catch((err) => console.error('Failed to open URL:', err));
+    }
+  }, [selectedIds, filteredList]);
+
+  const handleCardDoubleClick = useCallback((e: React.MouseEvent, item: DumpItem) => {
+    if (item.type === 'folder') {
+      e.stopPropagation();
+      setActiveFolderId(item.id);
+    } else if (item.type === 'photo') {
+      e.stopPropagation();
+      setPreviewPhotoId(item.id);
+    }
+  }, []);
 
   const getPrimaryForeground = (theme: AccentTheme, isDark: boolean) => {
     if (isDark) {
@@ -1969,14 +1713,38 @@ export default function App() {
                         {/* Folders Section */}
                         {folders.length > 0 && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {folders.map(renderCard)}
+                            {folders.map((item) => (
+                              <ItemCard
+                                key={item.id}
+                                item={item}
+                                isSyncing={item.syncState === 'syncing'}
+                                progress={uploadProgress[item.id] || 0}
+                                isSelected={selectedIds.has(item.id)}
+                                isCut={clipboard?.type === 'cut' && clipboard.itemIds.has(item.id)}
+                                onContextMenu={handleCardContextMenu}
+                                onClick={handleCardClick}
+                                onDoubleClick={handleCardDoubleClick}
+                              />
+                            ))}
                           </div>
                         )}
 
                         {/* Items Section */}
                         {normalItems.length > 0 && (
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {normalItems.map(renderCard)}
+                            {normalItems.map((item) => (
+                              <ItemCard
+                                key={item.id}
+                                item={item}
+                                isSyncing={item.syncState === 'syncing'}
+                                progress={uploadProgress[item.id] || 0}
+                                isSelected={selectedIds.has(item.id)}
+                                isCut={clipboard?.type === 'cut' && clipboard.itemIds.has(item.id)}
+                                onContextMenu={handleCardContextMenu}
+                                onClick={handleCardClick}
+                                onDoubleClick={handleCardDoubleClick}
+                              />
+                            ))}
                           </div>
                         )}
                       </div>
