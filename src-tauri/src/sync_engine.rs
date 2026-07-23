@@ -1,4 +1,8 @@
-use axum::{extract::Query, routing::get, Json, Router};
+use axum::{
+    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query},
+    routing::get,
+    Json, Router,
+};
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -35,6 +39,7 @@ pub struct AppState {
     device_id: String,
     pairing_code: Mutex<Option<String>>,
     app_handle: AppHandle,
+    ws_tx: tokio::sync::broadcast::Sender<String>,
 }
 
 fn get_db_path(app: &AppHandle) -> std::path::PathBuf {
@@ -93,11 +98,14 @@ pub fn init_db(app: &AppHandle) -> Arc<AppState> {
         }
     }
 
+    let (ws_tx, _) = tokio::sync::broadcast::channel(100);
+
     Arc::new(AppState {
         db: Mutex::new(conn),
         device_id,
         pairing_code: Mutex::new(None),
         app_handle: app.clone(),
+        ws_tx,
     })
 }
 
@@ -182,6 +190,7 @@ fn append_event(state: &AppState, entity_id: &str, action: &str, payload: serde_
     ).unwrap();
 
     rebuild_materialized_view(&conn, entity_id);
+    let _ = state.ws_tx.send("SYNC_NEEDED".to_string());
 }
 
 // ─── Tauri Commands ───────────────────────────────────────────────────────────
@@ -242,6 +251,14 @@ pub fn set_item_folder(state: tauri::State<'_, Arc<AppState>>, id: String, folde
         None => serde_json::json!({ "folderId": null }),
     };
     append_event(&state, &id, "ITEM_UPDATED", payload);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn disconnect(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute("DELETE FROM config WHERE key LIKE 'paired_%'", []).map_err(|e| e.to_string())?;
+    let _ = state.ws_tx.send("FORCE_DISCONNECT".to_string());
     Ok(())
 }
 
@@ -349,6 +366,8 @@ async fn handle_sync_post(
         rebuild_materialized_view(&conn, &entity);
     }
     
+    let _ = state.ws_tx.send("SYNC_NEEDED".to_string());
+    
     // Notify frontend of update
     if let Some(window) = state.app_handle.get_webview_window("main") {
         let _ = window.emit("storage-updated", ());
@@ -367,6 +386,25 @@ pub struct PairRequest {
 pub struct PairResponse {
     success: bool,
     device_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UnpairRequest {
+    device_id: String,
+}
+
+async fn handle_unpair_post(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    Json(payload): Json<UnpairRequest>,
+) -> Json<&'static str> {
+    let conn = state.db.lock().unwrap();
+    let _ = conn.execute("DELETE FROM config WHERE key = ?1", params![format!("paired_{}", payload.device_id)]);
+    
+    if let Some(window) = state.app_handle.get_webview_window("main") {
+        let _ = window.emit("device-unpaired", payload.device_id.clone());
+    }
+
+    Json("ok")
 }
 
 async fn handle_pair_post(
@@ -428,20 +466,88 @@ async fn handle_get_file(
 async fn handle_post_file(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
-    bytes: axum::body::Bytes,
+    request: axum::extract::Request,
 ) -> impl axum::response::IntoResponse {
+    use futures_util::StreamExt;
+    use tokio::io::AsyncWriteExt;
+
     let mut path = get_files_dir(&state.app_handle);
     path.push(&id);
-    if std::fs::write(&path, bytes).is_ok() {
-        axum::response::Response::builder()
-            .status(200)
-            .body(axum::body::Body::from("ok"))
-            .unwrap()
-    } else {
-        axum::response::Response::builder()
+    
+    let mut file = match tokio::fs::File::create(&path).await {
+        Ok(f) => f,
+        Err(_) => {
+            return axum::response::Response::builder()
+                .status(500)
+                .body(axum::body::Body::from("error creating file"))
+                .unwrap();
+        }
+    };
+
+    let mut stream = request.into_body().into_data_stream();
+    while let Some(chunk_res) = stream.next().await {
+        match chunk_res {
+            Ok(chunk) => {
+                if let Err(_) = file.write_all(&chunk).await {
+                    let _ = tokio::fs::remove_file(&path).await;
+                    return axum::response::Response::builder()
+                        .status(500)
+                        .body(axum::body::Body::from("error writing file"))
+                        .unwrap();
+                }
+            }
+            Err(_) => {
+                let _ = tokio::fs::remove_file(&path).await;
+                return axum::response::Response::builder()
+                    .status(400)
+                    .body(axum::body::Body::from("error reading body"))
+                    .unwrap();
+            }
+        }
+    }
+
+    if let Err(_) = file.flush().await {
+        return axum::response::Response::builder()
             .status(500)
-            .body(axum::body::Body::from("error"))
-            .unwrap()
+            .body(axum::body::Body::from("error flushing file"))
+            .unwrap();
+    }
+
+    axum::response::Response::builder()
+        .status(200)
+        .body(axum::body::Body::from("ok"))
+        .unwrap()
+}
+
+async fn handle_ws(
+    ws: WebSocketUpgrade,
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> axum::response::Response {
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
+    let mut rx = state.ws_tx.subscribe();
+    loop {
+        tokio::select! {
+            msg = rx.recv() => {
+                match msg {
+                    Ok(text) => {
+                        if socket.send(Message::Text(text.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            client_msg = socket.recv() => {
+                if let Some(Ok(_)) = client_msg {
+                    // Ignore client messages for now
+                } else {
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -454,9 +560,11 @@ pub fn start_p2p_server(state: Arc<AppState>) {
             let app = Router::new()
                 .route("/sync", get(handle_sync_get).post(handle_sync_post))
                 .route("/pair", axum::routing::post(handle_pair_post))
+                .route("/unpair", axum::routing::post(handle_unpair_post))
                 .route("/files/:id", get(handle_get_file).post(handle_post_file))
+                .route("/ws", get(handle_ws))
                 .layer(cors)
-                .layer(axum::extract::DefaultBodyLimit::max(500 * 1024 * 1024))
+                .layer(axum::extract::DefaultBodyLimit::disable())
                 .with_state(state.clone());
                 
             let listener = match tokio::net::TcpListener::bind("0.0.0.0:14201").await {

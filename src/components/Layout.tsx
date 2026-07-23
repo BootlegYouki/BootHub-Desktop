@@ -193,10 +193,10 @@ export function Layout() {
               })}
             </TuiContainer>
 
-            {/* CLOUD STATUS */}
+            {/* SYNC STATUS */}
             <div className="shrink-0">
               <TuiContainer
-                label="Cloud Status"
+                label="Sync"
                 noPadding={false}
                 style={{ height: '145px' }}
                 contentStyle={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
@@ -663,22 +663,22 @@ export function Layout() {
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-100">
             <div className="w-full max-w-sm">
               <TuiContainer label="Pair Device" disableHover={true}>
-                <div className="py-6 flex flex-col items-center gap-4">
-                  <p className="text-xs text-muted text-center font-mono">
-                    Enter this code on your mobile device to pair:
-                  </p>
-                  
-                  <div className="text-4xl font-bold tracking-[0.2em] text-primary bg-card border-[1.5px] border-border py-4 px-6 font-mono">
-                    {pairingCode.slice(0, 3)} - {pairingCode.slice(3)}
-                  </div>
+                <div className="py-6 px-4 flex flex-col items-center gap-4">
 
-                  <TuiButton
-                    onPress={cancelPairing}
-                    variant="outline"
-                    className="mt-4"
-                  >
-                    Cancel Pairing
-                  </TuiButton>
+                  
+                  <div className="w-full flex flex-col gap-4 mt-2">
+                    <div className="w-full text-4xl font-bold tracking-[0.5em] text-primary bg-card border-[1.5px] border-border py-6 text-center font-mono pl-[0.5em]">
+                      {pairingCode}
+                    </div>
+
+                    <TuiButton
+                      onPress={cancelPairing}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Cancel Pairing
+                    </TuiButton>
+                  </div>
                 </div>
               </TuiContainer>
             </div>

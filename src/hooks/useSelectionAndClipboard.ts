@@ -10,7 +10,7 @@ export function useSelectionAndClipboard(
   modals: any,
   itemsState: any
 ) {
-  const { setContextMenu, showConfirm, showAlert } = modals;
+  const { setContextMenu, showConfirm, showAlert, setPreviewPhotoId } = modals;
   const { setItems, activeFolderId, setActiveFolderId, filteredList } = itemsState;
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -55,6 +55,8 @@ export function useSelectionAndClipboard(
     if (item.type === 'folder') {
       setActiveFolderId(item.id);
       setSelectedIds(new Set());
+    } else if (item.type === 'photo') {
+      setPreviewPhotoId(item.id);
     }
   };
 

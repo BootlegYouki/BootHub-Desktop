@@ -55,11 +55,12 @@ export function useSync(modals: any) {
     return () => { mounted = false; };
   }, []);
 
-  // Listen for pairing success from backend
+  // Listen for pairing and unpairing events from backend
   useEffect(() => {
-    let unlistenFn: () => void;
+    let unlistenPaired: () => void;
+    let unlistenUnpaired: () => void;
     const setupListener = async () => {
-      unlistenFn = await listen('device-paired', async (event) => {
+      unlistenPaired = await listen('device-paired', async (event) => {
         const pairedDeviceId = event.payload as string;
         setIsPaired(true);
         setPairingCode(null);
@@ -67,10 +68,17 @@ export function useSync(modals: any) {
         await saveSetting(`paired_${pairedDeviceId}`, 'true');
         showAlert('Paired Successfully', 'Your device is now paired and ready to sync!');
       });
+
+      unlistenUnpaired = await listen('device-unpaired', async () => {
+        setIsPaired(false);
+        await saveSetting('is_paired', 'false');
+        showAlert('Device Disconnected', 'A paired device has disconnected.');
+      });
     };
     setupListener();
     return () => {
-      if (unlistenFn) unlistenFn();
+      if (unlistenPaired) unlistenPaired();
+      if (unlistenUnpaired) unlistenUnpaired();
     };
   }, [showAlert]);
 
@@ -129,6 +137,7 @@ export function useSync(modals: any) {
     );
     if (confirmed) {
       await saveSetting('is_paired', 'false');
+      await invoke('disconnect');
       setIsPaired(false);
     }
   };

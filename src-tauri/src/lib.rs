@@ -123,7 +123,8 @@ pub fn run() {
             sync_engine::set_item_folder,
             sync_engine::save_file,
             sync_engine::read_file,
-            sync_engine::delete_file
+            sync_engine::delete_file,
+            sync_engine::disconnect
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

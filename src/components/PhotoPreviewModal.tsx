@@ -52,7 +52,7 @@ export const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-4 select-none animate-in fade-in duration-150"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 select-none animate-in fade-in duration-150"
     >
       {loading ? (
         <span className="text-sm text-muted font-bold animate-pulse font-mono">[ Loading Image... ]</span>

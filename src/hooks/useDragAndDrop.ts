@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   DumpItem,
-  getItems,
   saveItemFile,
   addItem,
 } from '../utils/db';
@@ -9,7 +8,7 @@ import {
 import { TabType } from '../types';
 
 export function useDragAndDrop(itemsState: any) {
-  const { activeTab, activeFolderId, setItems } = itemsState;
+  const { activeTab, activeFolderId } = itemsState;
 
   const [inputText, setInputText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -202,10 +201,7 @@ export function useDragAndDrop(itemsState: any) {
         }
       }
 
-      if (newItemsList.length > 0) {
-        const current = await getItems();
-        setItems([...newItemsList, ...current]);
-      }
+      // State is updated automatically via subscribeToStorage in db.ts
     }
   };
 
@@ -248,15 +244,11 @@ export function useDragAndDrop(itemsState: any) {
       newItemsList.push(newFileItem);
     }
 
-    if (newItemsList.length > 0) {
-      const current = await getItems();
-      setItems([...newItemsList, ...current]);
-    }
+    // State is updated automatically via subscribeToStorage in db.ts
   };
 
   const handleSubmitItem = async () => {
     if (inputText.trim() || attachedFiles.length > 0) {
-      const currentItems = await getItems();
       const newItemsList: DumpItem[] = [];
 
       if (inputText.trim()) {
@@ -319,9 +311,7 @@ export function useDragAndDrop(itemsState: any) {
         newItemsList.push(newFileItem);
       }
 
-      if (newItemsList.length > 0) {
-        setItems([...newItemsList, ...currentItems]);
-      }
+      // State is updated automatically via subscribeToStorage in db.ts
 
       setInputText('');
       setAttachedFiles([]);
