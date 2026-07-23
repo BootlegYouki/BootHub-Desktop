@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   DumpItem,
   getItems,
   saveItems,
+  addItem,
+  getItemFile,
+  saveItemFile,
   deleteItemFile,
 } from '../utils/db';
 
@@ -57,6 +61,11 @@ export function useSelectionAndClipboard(
       setSelectedIds(new Set());
     } else if (item.type === 'photo') {
       setPreviewPhotoId(item.id);
+    } else if (item.type === 'link') {
+      let targetUrl = item.value.startsWith('http') ? item.value : `https://${item.value}`;
+      openUrl(targetUrl).catch(() => {
+        window.open(targetUrl, '_blank');
+      });
     }
   };
 
@@ -68,17 +77,82 @@ export function useSelectionAndClipboard(
     }
   };
 
-  const handleCopyItem = (id: string) => {
+  const writeItemToSystemClipboard = async (target: DumpItem) => {
+    try {
+      if (
+        target.type === 'photo' ||
+        (target.type === 'file' && /\.(png|jpe?g|webp|gif|bmp)$/i.test(target.label || target.value))
+      ) {
+        const blob = await getItemFile(target.id);
+        if (blob) {
+          let mimeType = blob.type;
+          if (!mimeType || !mimeType.startsWith('image/')) {
+            const ext = (target.label || target.value).split('.').pop()?.toLowerCase();
+            if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+            else if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'webp') mimeType = 'image/webp';
+            else if (ext === 'gif') mimeType = 'image/gif';
+            else mimeType = 'image/png';
+          }
+          const buffer = await blob.arrayBuffer();
+          const imageBlob = new Blob([buffer], { type: mimeType });
+          if (typeof ClipboardItem !== 'undefined') {
+            const clipboardItem = new ClipboardItem({ [mimeType]: imageBlob });
+            await navigator.clipboard.write([clipboardItem]);
+            return;
+          }
+        }
+      }
+
+      if (target.type === 'link' || target.type === 'text') {
+        if (target.value) {
+          await navigator.clipboard.writeText(target.value);
+          return;
+        }
+      }
+
+      if (target.type === 'file') {
+        const fileUrl = `http://127.0.0.1:14201/files/${target.id}`;
+        await navigator.clipboard.writeText(fileUrl);
+        return;
+      }
+    } catch (err) {
+      console.error('Failed to write to system clipboard:', err);
+      if (target.value && !target.value.startsWith('ph://')) {
+        await navigator.clipboard.writeText(target.value).catch(() => {});
+      }
+    }
+  };
+
+  const handleCopyItem = async (id: string) => {
     setClipboard({ type: 'copy', itemIds: new Set([id]) });
+    const currentItems = await getItems();
+    const target = currentItems.find((i) => i.id === id);
+    if (target) {
+      await writeItemToSystemClipboard(target);
+    }
   };
 
   const handleCutItem = (id: string) => {
     setClipboard({ type: 'cut', itemIds: new Set([id]) });
   };
 
-  const handleCopySelected = () => {
+  const handleCopySelected = async () => {
     if (selectedIds.size > 0) {
       setClipboard({ type: 'copy', itemIds: new Set(selectedIds) });
+      const currentItems = await getItems();
+      const targets = currentItems.filter((i) => selectedIds.has(i.id));
+      if (targets.length === 1) {
+        await writeItemToSystemClipboard(targets[0]);
+      } else {
+        const texts = targets
+          .map((t) => t.value)
+          .filter((v) => v && !v.startsWith('ph://'))
+          .join('\n');
+        if (texts) {
+          await navigator.clipboard.writeText(texts).catch(() => {});
+        }
+      }
     }
   };
 
@@ -119,7 +193,32 @@ export function useSelectionAndClipboard(
 
       setClipboard(null);
     } else if (clipboard.type === 'copy') {
-      showAlert('Notice', 'Copying files is not yet fully supported (coming soon).');
+      const createdItems: DumpItem[] = [];
+      for (const pItem of pastedItems) {
+        if (pItem.type === 'folder') continue; // folder duplication can be added if needed
+        const newId = `${pItem.type}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        const copyLabel = pItem.label ? `${pItem.label} (Copy)` : undefined;
+
+        if (pItem.type === 'photo' || pItem.type === 'file') {
+          const fileBlob = await getItemFile(pItem.id);
+          if (fileBlob) {
+            await saveItemFile(newId, fileBlob);
+          }
+        }
+
+        const newItem: DumpItem = {
+          id: newId,
+          type: pItem.type,
+          label: copyLabel || pItem.label || pItem.value,
+          value: pItem.value,
+          folderId: targetFolderId || undefined,
+          syncState: 'pending',
+        };
+        await addItem(newItem);
+        createdItems.push(newItem);
+      }
+      const updated = [...currentItems, ...createdItems];
+      setItems(updated);
     }
   };
 
@@ -157,6 +256,15 @@ export function useSelectionAndClipboard(
         target.isContentEditable
       ) {
         return;
+      }
+
+      // Escape key (Cancel Move / Clear Clipboard / Clear Selection)
+      if (e.key === 'Escape') {
+        if (clipboard || selectedIds.size > 0) {
+          e.preventDefault();
+          setClipboard(null);
+          setSelectedIds(new Set());
+        }
       }
 
       // Select All (Ctrl+A / Cmd+A)

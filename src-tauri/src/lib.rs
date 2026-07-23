@@ -1,9 +1,4 @@
 mod sync_engine;
-
-use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::thread;
-use std::sync::Arc;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};

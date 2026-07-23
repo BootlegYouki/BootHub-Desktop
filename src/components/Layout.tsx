@@ -253,8 +253,33 @@ export function Layout() {
             </div>
           </aside>
 
-          {/* --- RIGHT CONTENT STACK (MAIN + FOOTER) --- */}
-          <div className="flex-1 flex flex-col gap-4 min-h-0 min-w-0">
+          {/* --- RIGHT CONTENT STACK (PATH + MAIN + FOOTER) --- */}
+          <div className="flex-1 flex flex-col gap-3 min-h-0 min-w-0">
+            {/* PATH HEADER CONTAINER */}
+            <div className="shrink-0">
+              <TuiContainer label="Path">
+                <div className="flex items-center gap-2 text-xs font-bold py-0.5 select-none">
+                  <button
+                    onClick={() => setActiveFolderId(null)}
+                    className={`hover:underline cursor-pointer ${activeFolderId ? 'text-primary' : 'text-foreground'}`}
+                  >
+                    {activeTab === 'link' ? 'Links' : activeTab === 'text' ? 'Texts' : activeTab === 'photo' ? 'Photos' : 'Files'}
+                  </button>
+                  {activeFolderId && (
+                    <>
+                      <span className="text-muted font-normal">&gt;</span>
+                      <span className="text-foreground">
+                        {(() => {
+                          const f = items.find((x) => x.id === activeFolderId);
+                          return f ? getFolderName(f) : 'Folder';
+                        })()}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </TuiContainer>
+            </div>
+
             {/* MAIN WORKSPACE */}
             <main className="flex-1 min-h-0 min-w-0 flex flex-col">
               {(() => {

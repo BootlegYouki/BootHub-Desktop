@@ -108,8 +108,8 @@ export function useDragAndDrop(itemsState: any) {
         folderId: parentFolderId,
       };
 
-      await saveItemFile(fileId, file);
       await addItem(newFileItem);
+      await saveItemFile(fileId, file);
       newItemsList.push(newFileItem);
     } else if (entry.isDirectory) {
       const folderId = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
@@ -193,8 +193,8 @@ export function useDragAndDrop(itemsState: any) {
                 folderId: activeFolderId || undefined,
               };
 
-              await saveItemFile(fileId, file);
               await addItem(newFileItem);
+              await saveItemFile(fileId, file);
               newItemsList.push(newFileItem);
             }
           }
@@ -239,8 +239,8 @@ export function useDragAndDrop(itemsState: any) {
         folderId: activeFolderId || undefined,
       };
 
-      await saveItemFile(fileId, file);
       await addItem(newFileItem);
+      await saveItemFile(fileId, file);
       newItemsList.push(newFileItem);
     }
 
@@ -306,8 +306,8 @@ export function useDragAndDrop(itemsState: any) {
           folderId: activeFolderId || undefined,
         };
 
-        await saveItemFile(fileId, file);
         await addItem(newFileItem);
+        await saveItemFile(fileId, file);
         newItemsList.push(newFileItem);
       }
 

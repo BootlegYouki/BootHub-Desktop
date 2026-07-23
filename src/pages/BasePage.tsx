@@ -1,7 +1,7 @@
 import React from 'react';
 import { TuiContainer } from '../components/TuiContainer';
 import { ItemCard } from '../components/ItemCard';
-import { DumpItem } from '../utils/db';
+import { DumpItem, fileProgressMap, subscribeToFileProgress } from '../utils/db';
 
 export type TabType = 'link' | 'text' | 'photo' | 'file';
 
@@ -42,11 +42,8 @@ export interface BasePageProps {
 
 export const BasePage: React.FC<BasePageProps> = ({
   activeTab,
-  items,
   folders,
   normalItems,
-  activeFolderId,
-  setActiveFolderId,
   selectedIds,
   setSelectedIds,
   clipboard,
@@ -59,7 +56,6 @@ export const BasePage: React.FC<BasePageProps> = ({
   handleCardContextMenu,
   handleCardClick,
   handleCardDoubleClick,
-  getFolderName,
 }) => {
   const [dragBox, setDragBox] = React.useState<DragBoxState>({
     active: false,
@@ -78,6 +74,14 @@ export const BasePage: React.FC<BasePageProps> = ({
     };
     window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
+  const [, setProgressTick] = React.useState(0);
+
+  React.useEffect(() => {
+    return subscribeToFileProgress(() => {
+      setProgressTick((v) => v + 1);
+    });
   }, []);
 
   return (
@@ -144,31 +148,8 @@ export const BasePage: React.FC<BasePageProps> = ({
         }}
         className={`flex-1 flex flex-col p-4 min-h-0 min-w-0 ${contextMenuVisible ? 'overflow-hidden' : 'overflow-y-auto'}`}
       >
-        {/* BREADCRUMB */}
-        {activeFolderId && (
-          <div className="sticky top-0 z-20 bg-card pt-4 -mt-4 pb-3 mb-2 shrink-0">
-            <TuiContainer label="Path" noPadding={true}>
-              <div className="flex items-center gap-1.5 text-sm font-bold text-primary px-3 h-9">
-                <button
-                  onClick={() => setActiveFolderId(null)}
-                  className="hover:underline cursor-pointer text-primary"
-                >
-                  {activeTab === 'link' ? 'Links' : activeTab === 'text' ? 'Texts' : activeTab === 'photo' ? 'Photos' : 'Files'}
-                </button>
-                <span>&gt;</span>
-                <span className="text-foreground">
-                  {(() => {
-                    const f = items.find((x) => x.id === activeFolderId);
-                    return f ? getFolderName(f) : 'Folder';
-                  })()}
-                </span>
-              </div>
-            </TuiContainer>
-          </div>
-        )}
-        
         <div className="flex-1 min-h-0">
-          {folders.length === 0 && normalItems.length === 0 ? (
+          {folders.length === 0 && normalItems.length === 0 && activeTab !== 'file' ? (
             <div className="h-full flex items-center justify-center text-muted text-sm select-none">
               No {activeTab}s dumped yet.
             </div>
@@ -181,8 +162,8 @@ export const BasePage: React.FC<BasePageProps> = ({
                     <ItemCard
                       key={item.id}
                       item={item}
-                      isSyncing={item.syncState === 'syncing'}
-                      progress={0}
+                      isSyncing={item.syncState === 'syncing' || fileProgressMap.has(item.id)}
+                      progress={fileProgressMap.get(item.id) || 0}
                       isSelected={selectedIds.has(item.id)}
                       isCut={clipboard?.type === 'cut' && clipboard.itemIds.has(item.id)}
                       onContextMenu={handleCardContextMenu}
@@ -200,8 +181,8 @@ export const BasePage: React.FC<BasePageProps> = ({
                     <ItemCard
                       key={item.id}
                       item={item}
-                      isSyncing={item.syncState === 'syncing'}
-                      progress={0}
+                      isSyncing={item.syncState === 'syncing' || fileProgressMap.has(item.id)}
+                      progress={fileProgressMap.get(item.id) || 0}
                       isSelected={selectedIds.has(item.id)}
                       isCut={clipboard?.type === 'cut' && clipboard.itemIds.has(item.id)}
                       onContextMenu={handleCardContextMenu}

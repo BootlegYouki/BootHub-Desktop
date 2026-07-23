@@ -9,6 +9,7 @@ import {
 } from '../utils/db';
 
 import { TabType } from '../types';
+import { previewCache } from '../components/LinkPreview';
 
 export function useItems(modals: any) {
   const { setFolderPrompt, showAlert } = modals;
@@ -201,22 +202,66 @@ export function useItems(modals: any) {
     });
   }, [items, activeTab, getFolderTab]);
 
+  const getCachedPreviewText = (url: string): string => {
+    try {
+      if (previewCache.has(url)) {
+        const p = previewCache.get(url);
+        if (p) return `${p.title || ''} ${p.description || ''}`;
+      }
+      const key = `@boothub_preview_cache:${encodeURIComponent(url)}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          const title = parsed.title || (parsed.data && parsed.data.title) || '';
+          const description = parsed.description || (parsed.data && parsed.data.description) || '';
+          return `${title} ${description}`;
+        }
+      }
+    } catch (e) {}
+    return '';
+  };
+
   const filteredList = useMemo(() => {
     let result = activeTabItems;
-    if (activeFolderId) {
-      result = result.filter((item) => item.folderId === activeFolderId);
-    } else {
-      result = result.filter((item) => !item.folderId || item.type === 'folder');
-    }
 
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (item) => item.label.toLowerCase().includes(q) || item.value.toLowerCase().includes(q)
-      );
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((item) => {
+        if (item.type === 'folder') {
+          const name = getFolderName(item).toLowerCase();
+          return name.includes(q);
+        }
+
+        const labelMatch = item.label ? item.label.toLowerCase().includes(q) : false;
+        const valueMatch = item.value ? item.value.toLowerCase().includes(q) : false;
+
+        let fileMatch = false;
+        if (item.type === 'file' || item.type === 'photo') {
+          try {
+            const parsed = JSON.parse(item.value);
+            if (parsed.name && parsed.name.toLowerCase().includes(q)) fileMatch = true;
+          } catch (e) {}
+        }
+
+        let previewMatch = false;
+        if (item.type === 'link' && item.value) {
+          const previewText = getCachedPreviewText(item.value).toLowerCase();
+          if (previewText.includes(q)) previewMatch = true;
+        }
+
+        return labelMatch || valueMatch || fileMatch || previewMatch;
+      });
+    } else {
+      if (activeFolderId) {
+        result = result.filter((item) => item.folderId === activeFolderId);
+      } else {
+        result = result.filter((item) => !item.folderId || item.type === 'folder');
+      }
     }
+
     return result;
-  }, [activeTabItems, activeFolderId, searchQuery]);
+  }, [activeTabItems, activeFolderId, searchQuery, getFolderName]);
 
   const folders = useMemo(() => filteredList.filter((x) => x.type === 'folder'), [filteredList]);
   const normalItems = useMemo(() => filteredList.filter((x) => x.type !== 'folder'), [filteredList]);

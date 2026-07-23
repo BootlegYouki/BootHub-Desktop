@@ -61,6 +61,7 @@ const isDirectImageUrl = (url: string) => {
 export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
   const [loading, setLoading] = useState<boolean>(() => !previewCache.has(url));
   const [data, setData] = useState<PreviewData | null>(() => previewCache.get(url) || null);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   useEffect(() => {
     let active = true;
@@ -68,6 +69,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
     const controller = new AbortController();
 
     const fetchMetadata = async () => {
+      setImageError(false);
       if (previewCache.has(url)) {
         if (active) {
           setData(previewCache.get(url) || null);
@@ -97,12 +99,14 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
         const cachedRaw = localStorage.getItem(cacheKey);
         if (cachedRaw) {
           const parsed = JSON.parse(cachedRaw) as PreviewData;
-          previewCache.set(url, parsed);
-          if (active) {
-            setData(parsed);
-            setLoading(false);
+          if (parsed && parsed.image) {
+            previewCache.set(url, parsed);
+            if (active) {
+              setData(parsed);
+              setLoading(false);
+            }
+            return;
           }
-          return;
         }
       } catch (e) {
         console.warn('Failed to read persistent preview cache:', e);
@@ -118,34 +122,59 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
             setLoading(false);
             setData(null);
           }
-        }, 3000);
+        }, 4000);
 
-        const response = await axios.get(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          },
-          responseType: 'text',
-          signal: controller.signal
-        });
+        let image: string | null = null;
+        let title: string | null = null;
+        let description: string | null = null;
+
+        try {
+          const response = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            },
+            responseType: 'text',
+            signal: controller.signal
+          });
+
+          const html = response.data;
+          const metaTags = extractMetaTags(html);
+          
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          const htmlTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : null;
+          const ogTitle = metaTags['og:title'] || metaTags['twitter:title'];
+          title = ogTitle ? decodeHtmlEntities(ogTitle) : htmlTitle;
+          
+          const ogDesc = metaTags['og:description'] || metaTags['twitter:description'] || metaTags['description'];
+          description = ogDesc ? decodeHtmlEntities(ogDesc) : null;
+          
+          const ogImage = metaTags['og:image'] || metaTags['twitter:image'];
+          image = ogImage ? decodeHtmlEntities(ogImage) : null;
+        } catch (scrapeErr) {
+          console.warn('Scraping direct URL failed, trying Microlink fallback:', scrapeErr);
+        }
+
+        // Fallback to Microlink API if no image was found (especially for Instagram / TikTok / social media)
+        if (!image) {
+          try {
+            const microRes = await axios.get(`https://api.microlink.io/?url=${encodeURIComponent(url)}`, {
+              timeout: 3500,
+              signal: controller.signal,
+            });
+            if (microRes.data && microRes.data.status === 'success' && microRes.data.data) {
+              const mData = microRes.data.data;
+              if (mData.image?.url) image = mData.image.url;
+              if (!title && mData.title) title = mData.title;
+              if (!description && mData.description) description = mData.description;
+            }
+          } catch (mErr) {
+            console.warn('Microlink fallback failed:', mErr);
+          }
+        }
 
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-
-        const html = response.data;
-
-        const metaTags = extractMetaTags(html);
-        
-        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        const htmlTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : null;
-        const ogTitle = metaTags['og:title'] || metaTags['twitter:title'];
-        const title = ogTitle ? decodeHtmlEntities(ogTitle) : htmlTitle;
-        
-        const ogDesc = metaTags['og:description'] || metaTags['twitter:description'] || metaTags['description'];
-        const description = ogDesc ? decodeHtmlEntities(ogDesc) : null;
-        
-        const ogImage = metaTags['og:image'] || metaTags['twitter:image'];
-        const image = ogImage ? decodeHtmlEntities(ogImage) : null;
 
         const parsedData: PreviewData = {
           image,
@@ -210,19 +239,22 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 
   return (
     <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 select-none">
-      {previewData.image ? (
-        <div className="w-full aspect-[21/9] border-[1.5px] border-border bg-black overflow-hidden flex items-center justify-center">
+      {previewData.image && !imageError ? (
+        <div className="w-full aspect-[21/9] border-[1.5px] border-border bg-black/40 overflow-hidden flex items-center justify-center">
           <img
             src={previewData.image}
             alt="Link Preview"
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
+            onError={() => {
+              setImageError(true);
             }}
           />
         </div>
       ) : (
-        <div className="w-full aspect-[21/9] border-[1.5px] border-border/30 bg-[#27272a]/30" />
+        <div className="w-full aspect-[21/9] border-[1.5px] border-border/30 bg-[#27272a]/20 flex items-center justify-center">
+          <span className="text-[11px] text-muted-foreground font-mono">No Preview Image</span>
+        </div>
       )}
       <div className="dark:bg-[#18181b]/5 p-2 border-[1.5px] border-border/30 flex flex-col gap-2 min-h-[58px] justify-between">
         {previewData.title ? (

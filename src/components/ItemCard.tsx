@@ -1,5 +1,6 @@
 import React from 'react';
 import { Folder, ArrowUpRight } from 'lucide-react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { TuiContainer } from './TuiContainer';
 import { LinkPreview } from './LinkPreview';
 import { PhotoThumbnail } from './PhotoThumbnail';
@@ -26,6 +27,13 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
   onClick,
   onDoubleClick,
 }) => {
+  const handleOpenUrl = (url: string) => {
+    let targetUrl = url.startsWith('http') ? url : `https://${url}`;
+    openUrl(targetUrl).catch(() => {
+      window.open(targetUrl, '_blank');
+    });
+  };
+
   return (
     <div
       data-id={item.id}
@@ -47,7 +55,7 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
         >
           {/* Sync Progress Bar */}
           {isSyncing && (
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20 z-20">
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary/20 z-20 overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-150"
                 style={{ width: `${progress * 100}%` }}
@@ -65,7 +73,7 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
         >
           {/* Sync Progress Bar */}
           {isSyncing && (
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary/20">
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary/20 overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-150"
                 style={{ width: `${progress * 100}%` }}
@@ -86,6 +94,8 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
                   href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
+                    handleOpenUrl(item.value);
                   }}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -104,10 +114,28 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
               // File
               <div className="flex flex-col gap-1.5">
                 <p className="text-xs font-bold leading-tight truncate">
-                  {JSON.parse(item.value).name}
+                  {(() => {
+                    try { return JSON.parse(item.value).name; } catch { return item.value; }
+                  })()}
                 </p>
-                <p className="text-[10px] text-muted">
-                  {(JSON.parse(item.value).size / 1024).toFixed(1)} KB
+                <p className="text-[10px] text-muted flex items-center justify-between">
+                  <span>
+                    {(() => {
+                      try {
+                        const bytes = JSON.parse(item.value).size || 0;
+                        if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+                        if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+                        return (bytes / 1024).toFixed(1) + ' KB';
+                      } catch {
+                        return '';
+                      }
+                    })()}
+                  </span>
+                  {isSyncing && (
+                    <span className="font-mono text-primary font-bold">
+                      {Math.round(progress * 100)}%
+                    </span>
+                  )}
                 </p>
               </div>
             )}

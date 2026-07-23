@@ -116,8 +116,8 @@ export const saveItems = async (newItems: DumpItem[]): Promise<void> => {
       });
     } else {
       const currentItem = currentMap.get(id)!;
-      if (currentItem.value !== newItem.value) {
-        await invoke('update_item', { id, value: newItem.value });
+      if (currentItem.value !== newItem.value || currentItem.label !== newItem.label) {
+        await invoke('update_item', { id, value: newItem.value, label: newItem.label });
       }
       if (currentItem.folderId !== newItem.folderId) {
         await invoke('set_item_folder', { id, folderId: newItem.folderId || null });
@@ -142,8 +142,8 @@ export const deleteItem = async (id: string): Promise<void> => {
   notifyStorageListeners();
 };
 
-export const updateItem = async (id: string, value: string): Promise<void> => {
-  await invoke('update_item', { id, value });
+export const updateItem = async (id: string, value?: string, label?: string): Promise<void> => {
+  await invoke('update_item', { id, value: value || null, label: label || null });
   notifyStorageListeners();
 };
 
@@ -162,15 +162,45 @@ export const getItemFile = async (itemId: string): Promise<Blob | null> => {
   }
 };
 
+export const fileProgressMap = new Map<string, number>();
+const fileProgressListeners = new Set<() => void>();
+
+export const notifyFileProgressListeners = () => {
+  fileProgressListeners.forEach((fn) => fn());
+};
+
+export const subscribeToFileProgress = (fn: () => void) => {
+  fileProgressListeners.add(fn);
+  return () => {
+    fileProgressListeners.delete(fn);
+  };
+};
+
 export const saveItemFile = (itemId: string, blob: Blob): Promise<void> => {
   return new Promise((resolve, reject) => {
+    fileProgressMap.set(itemId, 0.01);
+    notifyFileProgressListeners();
+
     const xhr = new XMLHttpRequest();
+    if (xhr.upload) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          const pct = Math.min(0.99, Math.max(0.01, event.loaded / event.total));
+          fileProgressMap.set(itemId, pct);
+          notifyFileProgressListeners();
+        }
+      };
+    }
     xhr.open('POST', `http://127.0.0.1:14201/files/${itemId}`);
     xhr.onload = () => {
+      fileProgressMap.delete(itemId);
+      notifyFileProgressListeners();
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error('HTTP status ' + xhr.status));
     };
     xhr.onerror = (err) => {
+      fileProgressMap.delete(itemId);
+      notifyFileProgressListeners();
       console.error('XHR file save failed:', err);
       reject(err);
     };

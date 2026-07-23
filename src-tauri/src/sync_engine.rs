@@ -239,8 +239,15 @@ pub fn delete_item(state: tauri::State<'_, Arc<AppState>>, id: String) -> Result
 }
 
 #[tauri::command]
-pub fn update_item(state: tauri::State<'_, Arc<AppState>>, id: String, value: String) -> Result<(), String> {
-    append_event(&state, &id, "ITEM_UPDATED", serde_json::json!({ "value": value }));
+pub fn update_item(state: tauri::State<'_, Arc<AppState>>, id: String, value: Option<String>, label: Option<String>) -> Result<(), String> {
+    let mut payload = serde_json::Map::new();
+    if let Some(v) = value {
+        payload.insert("value".to_string(), serde_json::Value::String(v));
+    }
+    if let Some(l) = label {
+        payload.insert("label".to_string(), serde_json::Value::String(l));
+    }
+    append_event(&state, &id, "ITEM_UPDATED", serde_json::Value::Object(payload));
     Ok(())
 }
 
