@@ -412,16 +412,24 @@ async fn handle_sync_post(
     Json("ok").into_response()
 }
 
+fn get_desktop_device_name() -> String {
+    std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .unwrap_or_else(|_| "Desktop PC".to_string())
+}
+
 #[derive(Deserialize)]
 pub struct PairRequest {
     code: String,
     device_id: String,
+    device_name: Option<String>,
 }
 
 #[derive(Serialize)]
 pub struct PairResponse {
     success: bool,
     device_id: Option<String>,
+    device_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -453,21 +461,24 @@ async fn handle_pair_post(
             // Code matches! Clear the code so it can't be used again
             *locked_code = None;
             
-            // Save paired device ID
+            let device_label = payload.device_name.unwrap_or_else(|| "Mobile Device".to_string());
+
+            // Save paired device ID and name
             let conn = state.db.lock().unwrap();
             conn.execute(
-                "INSERT OR IGNORE INTO config (key, value) VALUES (?1, ?2)",
-                params![&format!("paired_{}", payload.device_id), "true"],
+                "INSERT OR REPLACE INTO config (key, value) VALUES (?1, ?2)",
+                params![&format!("paired_{}", payload.device_id), &device_label],
             ).unwrap();
             
             // Notify frontend
             if let Some(window) = state.app_handle.get_webview_window("main") {
-                let _ = window.emit("device-paired", payload.device_id.clone());
+                let _ = window.emit("device-paired", device_label);
             }
 
             return Json(PairResponse {
                 success: true,
                 device_id: Some(state.device_id.clone()),
+                device_name: Some(get_desktop_device_name()),
             });
         }
     }
@@ -475,6 +486,7 @@ async fn handle_pair_post(
     Json(PairResponse {
         success: false,
         device_id: None,
+        device_name: None,
     })
 }
 

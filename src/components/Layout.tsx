@@ -33,7 +33,7 @@ export function Layout() {
     activeTab, setActiveTab,
     activeFolderId, setActiveFolderId,
     handleCreateFolder,
-    isPaired, deviceId, handlePairDevice, pairingCode, cancelPairing,
+    isPaired, pairedDeviceName, handlePairDevice, pairingCode, cancelPairing,
     syncStatus, handleManualSync, handleDisconnect,
     attachedFiles, setAttachedFiles,
     inputText, setInputText,
@@ -209,7 +209,7 @@ export function Layout() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="font-bold text-sm truncate leading-tight">
-                          {deviceId ? `Device: ${deviceId.slice(0, 5)}` : 'Paired Device'}
+                          {pairedDeviceName || 'Mobile Device'}
                         </h4>
                       </div>
                     </div>

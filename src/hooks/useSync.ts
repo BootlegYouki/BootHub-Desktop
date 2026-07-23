@@ -18,6 +18,7 @@ export function useSync(modals: any) {
 
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isPaired, setIsPaired] = useState(false);
+  const [pairedDeviceName, setPairedDeviceName] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [accentTheme, setAccentTheme] = useState<AccentTheme>('classic');
@@ -47,6 +48,9 @@ export function useSync(modals: any) {
 
         const paired = await getSetting('is_paired');
         if (mounted) setIsPaired(paired === 'true');
+
+        const pairedName = await getSetting('paired_device_name');
+        if (mounted && typeof pairedName === 'string') setPairedDeviceName(pairedName);
       } catch (err) {
         console.error(err);
       }
@@ -63,16 +67,19 @@ export function useSync(modals: any) {
 
     const setupListener = async () => {
       const uPaired = await listen('device-paired', async (event) => {
-        const pairedDeviceId = event.payload as string;
+        const devName = (event.payload as string) || 'Mobile Device';
         setIsPaired(true);
         setPairingCode(null);
+        setPairedDeviceName(devName);
         await saveSetting('is_paired', 'true');
-        await saveSetting(`paired_${pairedDeviceId}`, 'true');
+        await saveSetting('paired_device_name', devName);
       });
 
       const uUnpaired = await listen('device-unpaired', async () => {
         setIsPaired(false);
+        setPairedDeviceName(null);
         await saveSetting('is_paired', 'false');
+        await saveSetting('paired_device_name', '');
       });
 
       if (cancelled) {
@@ -166,7 +173,7 @@ export function useSync(modals: any) {
   };
 
   return {
-    deviceId, isPaired, setIsPaired,
+    deviceId, isPaired, setIsPaired, pairedDeviceName,
     pairingCode, handlePairDevice, cancelPairing,
     themeMode, setThemeMode, handleSetThemeMode,
     accentTheme, setAccentTheme,
