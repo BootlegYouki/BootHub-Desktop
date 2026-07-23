@@ -263,9 +263,15 @@ pub fn set_item_folder(state: tauri::State<'_, Arc<AppState>>, id: String, folde
 
 #[tauri::command]
 pub fn disconnect(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    // 1. Broadcast FORCE_DISCONNECT over active WebSocket while still paired
+    let _ = state.ws_tx.send("FORCE_DISCONNECT".to_string());
+    
+    // Brief sleep to ensure packet flushes out to network
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    // 2. Clear paired keys from database
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM config WHERE key LIKE 'paired_%'", []).map_err(|e| e.to_string())?;
-    let _ = state.ws_tx.send("FORCE_DISCONNECT".to_string());
     Ok(())
 }
 
@@ -322,12 +328,28 @@ struct SyncPayload {
     events: Vec<SyncEvent>,
 }
 
+fn is_device_paired(conn: &rusqlite::Connection) -> bool {
+    let count: u64 = conn.query_row(
+        "SELECT COUNT(*) FROM config WHERE key LIKE 'paired_%'",
+        [],
+        |row| row.get(0),
+    ).unwrap_or(0);
+    count > 0
+}
+
 async fn handle_sync_get(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Query(query): Query<SyncQuery>,
-) -> Json<SyncResponse> {
-    let since = query.since.unwrap_or(0);
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
     let conn = state.db.lock().unwrap();
+    if !is_device_paired(&conn) {
+        return axum::response::Response::builder()
+            .status(403)
+            .body(axum::body::Body::from("forbidden"))
+            .unwrap();
+    }
+    let since = query.since.unwrap_or(0);
     let mut stmt = conn.prepare("SELECT id, entity_id, clock, device_id, action, payload, created_at FROM events WHERE clock > ?1 ORDER BY clock ASC").unwrap();
     
     let events: Vec<SyncEvent> = stmt.query_map(params![since], |row| {
@@ -344,14 +366,21 @@ async fn handle_sync_get(
 
     let max_clock = get_next_clock(&conn) - 1;
 
-    Json(SyncResponse { events, max_clock })
+    Json(SyncResponse { events, max_clock }).into_response()
 }
 
 async fn handle_sync_post(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Json(payload): Json<SyncPayload>,
-) -> Json<&'static str> {
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
     let mut conn = state.db.lock().unwrap();
+    if !is_device_paired(&conn) {
+        return axum::response::Response::builder()
+            .status(403)
+            .body(axum::body::Body::from("forbidden"))
+            .unwrap();
+    }
     let tx = conn.transaction().unwrap();
     
     let mut updated_entities = Vec::new();
@@ -380,7 +409,7 @@ async fn handle_sync_post(
         let _ = window.emit("storage-updated", ());
     }
     
-    Json("ok")
+    Json("ok").into_response()
 }
 
 #[derive(Deserialize)]
