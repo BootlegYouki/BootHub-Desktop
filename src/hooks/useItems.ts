@@ -128,12 +128,7 @@ export function useItems(modals: any) {
       await saveItems(currentItems);
       setItems(currentItems);
 
-      if (type === 'folder') {
-        const movedItems = currentItems.filter((x) => x.folderId === id);
-        for (const moved of movedItems) {
 
-        }
-      }
 
       const syncPayload: any = {};
       if (type === 'link' || type === 'text') {
