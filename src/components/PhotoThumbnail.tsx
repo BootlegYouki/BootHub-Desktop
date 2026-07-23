@@ -38,8 +38,9 @@ export const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
 
     const loadImg = async () => {
       try {
-        const blob = await getItemFile(itemId);
-        if (blob && active) {
+        const rawBlob = await getItemFile(itemId);
+        if (rawBlob && active) {
+          const blob = new Blob([rawBlob], { type: 'image/jpeg' });
           const url = getCachedObjectUrl(itemId, blob);
           setImgUrl(url);
         }

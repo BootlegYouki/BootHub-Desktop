@@ -26,8 +26,9 @@ export const PhotoPreviewModal: React.FC<PhotoPreviewModalProps> = ({
 
     const loadImg = async () => {
       try {
-        const blob = await getItemFile(item.id);
-        if (blob && active) {
+        const rawBlob = await getItemFile(item.id);
+        if (rawBlob && active) {
+          const blob = new Blob([rawBlob], { type: 'image/jpeg' });
           const url = getCachedObjectUrl(item.id, blob);
           setImgUrl(url);
         }
