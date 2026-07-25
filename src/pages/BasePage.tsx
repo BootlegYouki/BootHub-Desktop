@@ -38,6 +38,7 @@ export interface BasePageProps {
   handleCardClick: (e: React.MouseEvent, item: DumpItem) => void;
   handleCardDoubleClick: (e: React.MouseEvent, item: DumpItem) => void;
   getFolderName: (item: DumpItem) => string;
+  viewMode?: 'grid' | 'list';
 }
 
 export const BasePage: React.FC<BasePageProps> = ({
@@ -56,6 +57,7 @@ export const BasePage: React.FC<BasePageProps> = ({
   handleCardContextMenu,
   handleCardClick,
   handleCardDoubleClick,
+  viewMode = 'grid',
 }) => {
   const [dragBox, setDragBox] = React.useState<DragBoxState>({
     active: false,
@@ -157,7 +159,7 @@ export const BasePage: React.FC<BasePageProps> = ({
             <div className="flex flex-col gap-8">
               {/* Folders Section */}
               {folders.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className={viewMode === 'list' ? "flex flex-col gap-2" : "grid grid-cols-1 md:grid-cols-2 gap-6"}>
                   {folders.map((item) => (
                     <ItemCard
                       key={item.id}
@@ -169,6 +171,7 @@ export const BasePage: React.FC<BasePageProps> = ({
                       onContextMenu={handleCardContextMenu}
                       onClick={handleCardClick}
                       onDoubleClick={handleCardDoubleClick}
+                      viewMode={viewMode}
                     />
                   ))}
                 </div>
@@ -176,7 +179,7 @@ export const BasePage: React.FC<BasePageProps> = ({
 
               {/* Items Section */}
               {normalItems.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={viewMode === 'list' ? "flex flex-col gap-2" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"}>
                   {normalItems.map((item) => (
                     <ItemCard
                       key={item.id}
@@ -188,6 +191,7 @@ export const BasePage: React.FC<BasePageProps> = ({
                       onContextMenu={handleCardContextMenu}
                       onClick={handleCardClick}
                       onDoubleClick={handleCardDoubleClick}
+                      viewMode={viewMode}
                     />
                   ))}
                 </div>

@@ -112,6 +112,7 @@ export const saveItems = async (newItems: DumpItem[]): Promise<void> => {
         id: newItem.id, 
         type: newItem.type, 
         value: newItem.value, 
+        label: newItem.label,
         folderId: newItem.folderId || null 
       });
     } else {
@@ -132,6 +133,7 @@ export const addItem = async (item: DumpItem): Promise<void> => {
     id: item.id,
     type: item.type, 
     value: item.value, 
+    label: item.label,
     folderId: item.folderId || null 
   });
   notifyStorageListeners();

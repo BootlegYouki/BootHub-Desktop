@@ -15,9 +15,25 @@ export function useItems(modals: any) {
   const { setFolderPrompt, showAlert } = modals;
 
   const [items, setItems] = useState<DumpItem[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('link');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    return (localStorage.getItem('@boothub_active_tab') as TabType) || 'link';
+  });
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(() => {
+    return localStorage.getItem('@boothub_active_folder') || null;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('@boothub_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeFolderId) {
+      localStorage.setItem('@boothub_active_folder', activeFolderId);
+    } else {
+      localStorage.removeItem('@boothub_active_folder');
+    }
+  }, [activeFolderId]);
 
   // Auto-subscribe to local storage changes (including from other windows)
   useEffect(() => {

@@ -214,12 +214,12 @@ pub fn get_items(state: tauri::State<'_, Arc<AppState>>) -> Result<Vec<DumpItem>
 }
 
 #[tauri::command]
-pub fn add_item(state: tauri::State<'_, Arc<AppState>>, id: String, r#type: String, value: String, folder_id: Option<String>) -> Result<(), String> {
-    let label = chrono::Local::now().format("%m-%d-%Y @ %H:%M").to_string(); // Simplified timestamp
+pub fn add_item(state: tauri::State<'_, Arc<AppState>>, id: String, r#type: String, value: String, label: Option<String>, folder_id: Option<String>) -> Result<(), String> {
+    let final_label = label.unwrap_or_else(|| chrono::Local::now().format("%m-%d-%Y @ %H:%M").to_string());
     
     let mut payload = serde_json::json!({
         "type": r#type,
-        "label": label,
+        "label": final_label,
         "value": value,
     });
     
@@ -336,13 +336,41 @@ fn is_device_paired(conn: &rusqlite::Connection) -> bool {
     count > 0
 }
 
+fn get_auth_token_from_header(headers: &axum::http::HeaderMap) -> Option<String> {
+    if let Some(auth_header) = headers.get(axum::http::header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if auth_str.starts_with("Bearer ") {
+                return Some(auth_str[7..].to_string());
+            }
+        }
+    }
+    None
+}
+
+fn is_authenticated(conn: &rusqlite::Connection, headers: &axum::http::HeaderMap, addr: std::net::SocketAddr) -> bool {
+    if addr.ip().is_loopback() {
+        return true;
+    }
+    if let Some(token) = get_auth_token_from_header(headers) {
+        let count: u64 = conn.query_row(
+            "SELECT COUNT(*) FROM config WHERE key LIKE 'auth_token_%' AND value = ?1",
+            params![token],
+            |row| row.get(0),
+        ).unwrap_or(0);
+        return count > 0;
+    }
+    false
+}
+
 async fn handle_sync_get(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Query(query): Query<SyncQuery>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
     let conn = state.db.lock().unwrap();
-    if !is_device_paired(&conn) {
+    if !is_authenticated(&conn, &headers, addr) {
         return axum::response::Response::builder()
             .status(403)
             .body(axum::body::Body::from("forbidden"))
@@ -369,12 +397,14 @@ async fn handle_sync_get(
 }
 
 async fn handle_sync_post(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Json(payload): Json<SyncPayload>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
     let mut conn = state.db.lock().unwrap();
-    if !is_device_paired(&conn) {
+    if !is_authenticated(&conn, &headers, addr) {
         return axum::response::Response::builder()
             .status(403)
             .body(axum::body::Body::from("forbidden"))
@@ -429,6 +459,7 @@ pub struct PairResponse {
     success: bool,
     device_id: Option<String>,
     device_name: Option<String>,
+    auth_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -442,6 +473,7 @@ async fn handle_unpair_post(
 ) -> Json<&'static str> {
     let conn = state.db.lock().unwrap();
     let _ = conn.execute("DELETE FROM config WHERE key = ?1", params![format!("paired_{}", payload.device_id)]);
+    let _ = conn.execute("DELETE FROM config WHERE key = ?1", params![format!("auth_token_{}", payload.device_id)]);
     
     if let Some(window) = state.app_handle.get_webview_window("main") {
         let _ = window.emit("device-unpaired", payload.device_id.clone());
@@ -462,11 +494,18 @@ async fn handle_pair_post(
             
             let device_label = payload.device_name.unwrap_or_else(|| "Mobile Device".to_string());
 
+            let auth_token = uuid::Uuid::new_v4().to_string();
+
             // Save paired device ID and name
             let conn = state.db.lock().unwrap();
             conn.execute(
                 "INSERT OR REPLACE INTO config (key, value) VALUES (?1, ?2)",
                 params![&format!("paired_{}", payload.device_id), &device_label],
+            ).unwrap();
+            
+            conn.execute(
+                "INSERT OR REPLACE INTO config (key, value) VALUES (?1, ?2)",
+                params![&format!("auth_token_{}", payload.device_id), &auth_token],
             ).unwrap();
             
             // Notify frontend
@@ -478,6 +517,7 @@ async fn handle_pair_post(
                 success: true,
                 device_id: Some(state.device_id.clone()),
                 device_name: Some(get_desktop_device_name()),
+                auth_token: Some(auth_token),
             });
         }
     }
@@ -486,13 +526,25 @@ async fn handle_pair_post(
         success: false,
         device_id: None,
         device_name: None,
+        auth_token: None,
     })
 }
 
 async fn handle_get_file(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> impl axum::response::IntoResponse {
+    {
+        let conn = state.db.lock().unwrap();
+        if !is_authenticated(&conn, &headers, addr) {
+            return axum::response::Response::builder()
+                .status(403)
+                .body(axum::body::Body::from("forbidden"))
+                .unwrap();
+        }
+    }
     let mut path = get_files_dir(&state.app_handle);
     path.push(&id);
     if path.exists() {
@@ -511,10 +563,21 @@ async fn handle_get_file(
 }
 
 async fn handle_post_file(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    headers: axum::http::HeaderMap,
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
     request: axum::extract::Request,
 ) -> impl axum::response::IntoResponse {
+    {
+        let conn = state.db.lock().unwrap();
+        if !is_authenticated(&conn, &headers, addr) {
+            return axum::response::Response::builder()
+                .status(403)
+                .body(axum::body::Body::from("forbidden"))
+                .unwrap();
+        }
+    }
     use futures_util::StreamExt;
     use tokio::io::AsyncWriteExt;
 
@@ -566,10 +629,42 @@ async fn handle_post_file(
         .unwrap()
 }
 
+#[derive(Deserialize)]
+struct WsQuery {
+    token: Option<String>,
+}
+
 async fn handle_ws(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
     ws: WebSocketUpgrade,
+    Query(query): Query<WsQuery>,
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
 ) -> axum::response::Response {
+    let is_auth = {
+        if addr.ip().is_loopback() {
+            true
+        } else {
+            let conn = state.db.lock().unwrap();
+            if let Some(token) = query.token {
+                let count: u64 = conn.query_row(
+                    "SELECT COUNT(*) FROM config WHERE key LIKE 'auth_token_%' AND value = ?1",
+                    params![token],
+                    |row| row.get(0),
+                ).unwrap_or(0);
+                count > 0
+            } else {
+                false
+            }
+        }
+    };
+
+    if !is_auth {
+        return axum::response::Response::builder()
+            .status(403)
+            .body(axum::body::Body::from("forbidden"))
+            .unwrap();
+    }
+
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
@@ -645,7 +740,7 @@ pub fn start_p2p_server(state: Arc<AppState>) {
         mdns.register(my_service).unwrap();
 
         // Serve the Axum app
-        axum::serve(listener, app).await.unwrap();
+        axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await.unwrap();
         });
     });
 }

@@ -247,20 +247,26 @@ export function useDragAndDrop(itemsState: any) {
     // State is updated automatically via subscribeToStorage in db.ts
   };
 
-  const handleSubmitItem = async () => {
+  const handleSubmitItem = async (e?: any) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
     if (inputText.trim() || attachedFiles.length > 0) {
       const newItemsList: DumpItem[] = [];
 
       if (inputText.trim()) {
         const text = inputText.trim();
-        const firstLine = text.split('\n')[0];
-        let label = firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
 
         let type: TabType = 'text';
         if (text.startsWith('http://') || text.startsWith('https://')) {
           type = 'link';
-          label = text;
         }
+
+        const now = new Date();
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(
+          now.getHours()
+        )}:${pad(now.getMinutes())}`;
 
         const textId = `${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
         const newItem: DumpItem = {

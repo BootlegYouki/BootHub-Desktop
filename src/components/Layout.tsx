@@ -11,6 +11,8 @@ import {
   X,
   Sun,
   Moon,
+  List,
+  LayoutGrid,
 } from 'lucide-react';
 import { TuiContainer } from '../components/TuiContainer';
 import { TuiButton } from '../components/TuiButton';
@@ -27,6 +29,7 @@ import { FilesPage } from '../pages/FilesPage';
 import { useWorkspace, ACCENT_COLORS, AccentTheme, TabType } from '../contexts/WorkspaceContext';
 
 export function Layout() {
+  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const {
     themeMode, handleSetThemeMode, accentTheme,
     searchQuery, setSearchQuery,
@@ -258,23 +261,45 @@ export function Layout() {
             {/* PATH HEADER CONTAINER */}
             <div className="shrink-0">
               <TuiContainer label="Path">
-                <div className="flex items-center gap-2 text-xs font-bold py-0.5 select-none">
-                  <button
-                    onClick={() => setActiveFolderId(null)}
-                    className={`hover:underline cursor-pointer ${activeFolderId ? 'text-primary' : 'text-foreground'}`}
-                  >
-                    {activeTab === 'link' ? 'Links' : activeTab === 'text' ? 'Texts' : activeTab === 'photo' ? 'Photos' : 'Files'}
-                  </button>
-                  {activeFolderId && (
-                    <>
-                      <span className="text-muted font-normal">&gt;</span>
-                      <span className="text-foreground">
-                        {(() => {
-                          const f = items.find((x) => x.id === activeFolderId);
-                          return f ? getFolderName(f) : 'Folder';
-                        })()}
-                      </span>
-                    </>
+                <div className="flex items-center justify-between py-0.5 select-none w-full h-[28px]">
+                  <div className="flex items-center gap-2 text-xs font-bold">
+                    <button
+                      onClick={() => setActiveFolderId(null)}
+                      className={`hover:underline cursor-pointer ${activeFolderId ? 'text-primary' : 'text-foreground'}`}
+                    >
+                      {activeTab === 'link' ? 'Links' : activeTab === 'text' ? 'Texts' : activeTab === 'photo' ? 'Photos' : 'Files'}
+                    </button>
+                    {activeFolderId && (
+                      <>
+                        <span className="text-muted font-normal">&gt;</span>
+                        <span className="text-foreground">
+                          {(() => {
+                            const f = items.find((x) => x.id === activeFolderId);
+                            return f ? getFolderName(f) : 'Folder';
+                          })()}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  
+                  {activeTab === 'link' && (
+                    <div className="flex items-center bg-card border-[1.5px] border-border shrink-0">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-1 cursor-pointer transition-colors ${viewMode === 'grid' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
+                        title="Grid View"
+                      >
+                        <LayoutGrid size={14} />
+                      </button>
+                      <div className="w-px h-3 bg-border" />
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-1 cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
+                        title="List View"
+                      >
+                        <List size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </TuiContainer>
@@ -302,6 +327,7 @@ export function Layout() {
                   handleCardClick,
                   handleCardDoubleClick,
                   getFolderName,
+                  viewMode,
                 };
                 return (
                   <>

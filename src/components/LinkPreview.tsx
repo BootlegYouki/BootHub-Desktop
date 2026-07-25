@@ -9,6 +9,7 @@ export interface PreviewData {
 
 interface LinkPreviewProps {
   url: string;
+  mode?: 'card' | 'inline';
 }
 
 export const previewCache = new Map<string, PreviewData | null>();
@@ -58,7 +59,7 @@ const isDirectImageUrl = (url: string) => {
   );
 };
 
-export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
+export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) => {
   const [loading, setLoading] = useState<boolean>(() => !previewCache.has(url));
   const [data, setData] = useState<PreviewData | null>(() => previewCache.get(url) || null);
   const [imageError, setImageError] = useState<boolean>(false);
@@ -222,6 +223,9 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
   }, [url]);
 
   if (loading) {
+    if (mode === 'inline') {
+      return <span className="text-[11px] text-muted font-mono font-bold truncate block animate-pulse">Loading title...</span>;
+    }
     return (
       <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 animate-pulse select-none">
         <div className="w-full aspect-[21/9] bg-zinc-800/40 border-[1.5px] border-border/40" />
@@ -236,6 +240,14 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
   }
 
   const previewData = data || { image: null, title: null, description: null };
+
+  if (mode === 'inline') {
+    return (
+      <span className="text-[11px] text-primary font-mono font-bold truncate block">
+        {previewData.title || 'No title available'}
+      </span>
+    );
+  }
 
   return (
     <div className="mt-2 border-t-[1.5px] border-border/40 pt-2 flex flex-col gap-2 select-none">

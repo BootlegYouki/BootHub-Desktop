@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, ArrowUpRight } from 'lucide-react';
+import { Folder, ArrowUpRight, Link2 } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { TuiContainer } from './TuiContainer';
 import { LinkPreview } from './LinkPreview';
@@ -15,6 +15,7 @@ interface ItemCardProps {
   onContextMenu: (e: React.MouseEvent, item: DumpItem) => void;
   onClick: (e: React.MouseEvent, item: DumpItem) => void;
   onDoubleClick: (e: React.MouseEvent, item: DumpItem) => void;
+  viewMode?: 'grid' | 'list';
 }
 
 export const ItemCard: React.FC<ItemCardProps> = React.memo(({
@@ -26,6 +27,7 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
   onContextMenu,
   onClick,
   onDoubleClick,
+  viewMode = 'grid',
 }) => {
   const handleOpenUrl = (url: string) => {
     let targetUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -44,7 +46,79 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
       onClick={(e) => onClick(e, item)}
       onDoubleClick={(e) => onDoubleClick(e, item)}
     >
-      {item.type === 'photo' ? (
+      {viewMode === 'list' && (item.type === 'link' || item.type === 'folder') ? (
+        <div className={`relative grid grid-cols-[1fr_1fr_140px] gap-4 items-center px-3 py-3 border-[1.5px] bg-card w-full min-w-0 transition-colors ${isSelected ? 'border-primary shadow-[0_0_8px_rgba(168,85,247,0.3)]' : 'border-border hover:border-foreground'} group`}>
+           {isSyncing && (
+             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary/20 z-20 overflow-hidden col-span-3">
+               <div
+                 className="h-full bg-primary transition-all duration-150"
+                 style={{ width: `${progress * 100}%` }}
+               />
+             </div>
+           )}
+           
+           {/* Column 1: Value / URL */}
+           <div className="flex items-center gap-3 min-w-0">
+             {item.type === 'folder' && <Folder size={16} className="text-primary fill-primary/10 shrink-0 group-hover:scale-110 transition-transform duration-150" />}
+             {item.type === 'link' && <Link2 size={16} className="text-primary shrink-0" />}
+             
+             {item.type === 'folder' && (
+                <span className="font-bold text-sm leading-tight group-hover:text-primary truncate block w-full">{item.label || 'New Folder'}</span>
+             )}
+             
+             {item.type === 'link' && (
+               <a
+                 href={item.value.startsWith('http') ? item.value : `https://${item.value}`}
+                 onClick={(e) => {
+                   e.preventDefault();
+                   e.stopPropagation();
+                   handleOpenUrl(item.value);
+                 }}
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="text-primary hover:underline text-sm font-bold truncate block w-full"
+               >
+                 {item.value}
+               </a>
+             )}
+           </div>
+           
+           {(() => {
+             let dateStr = '';
+             const tsStr = item.id.split('_')[0];
+             const ts = parseInt(tsStr, 10);
+             if (!isNaN(ts) && ts > 1000000000000) {
+               const d = new Date(ts);
+               const pad = (n: number) => n.toString().padStart(2, '0');
+               dateStr = `${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${d.getFullYear()} @ ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+             }
+             
+             const displayLabel = item.label === dateStr ? '-' : item.label;
+
+             return (
+               <>
+                 {/* Column 2: Label / Title */}
+                 {item.type !== 'folder' ? (
+                   <div className="min-w-0">
+                     {item.type === 'link' ? (
+                       <LinkPreview url={item.value.startsWith('http') ? item.value : `https://${item.value}`} mode="inline" />
+                     ) : (
+                       <span className="text-[11px] text-muted font-mono font-bold truncate block">{displayLabel}</span>
+                     )}
+                   </div>
+                 ) : <div />}
+                 
+                 {/* Column 3: Date */}
+                 {item.type !== 'folder' ? (
+                   <div className="min-w-0 text-right">
+                     <span className="text-[11px] text-muted font-mono font-bold truncate block">{dateStr || item.label}</span>
+                   </div>
+                 ) : <div />}
+               </>
+             );
+           })()}
+        </div>
+      ) : item.type === 'photo' ? (
         <div
           className={`w-full h-full relative border-[1.5px] bg-card transition-all ${
             isSelected
