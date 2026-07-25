@@ -111,7 +111,6 @@ pub fn init_db(app: &AppHandle) -> Arc<AppState> {
 
 #[tauri::command]
 pub fn generate_pairing_code(state: tauri::State<'_, Arc<AppState>>) -> String {
-    use rand::Rng;
     let code: String = (0..6).map(|_| (rand::random::<u8>() % 10).to_string()).collect();
     *state.pairing_code.lock().unwrap() = Some(code.clone());
     code

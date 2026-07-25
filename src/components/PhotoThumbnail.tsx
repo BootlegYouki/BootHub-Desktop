@@ -1,73 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
-import { getItemFile } from '../utils/db';
 
 interface PhotoThumbnailProps {
   itemId: string;
 }
 
-// Memory cache for object URLs of photo/file items to avoid flicker & load instantly
-export const objectUrlCache = new Map<string, string>();
-
-export const getCachedObjectUrl = (itemId: string, blob: Blob): string => {
-  let cached = objectUrlCache.get(itemId);
-  if (!cached) {
-    cached = URL.createObjectURL(blob);
-    objectUrlCache.set(itemId, cached);
-  }
-  return cached;
-};
-
-export const revokeCachedObjectUrl = (itemId: string) => {
-  const cached = objectUrlCache.get(itemId);
-  if (cached) {
-    URL.revokeObjectURL(cached);
-    objectUrlCache.delete(itemId);
-  }
-};
-
 export const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
-  const cached = objectUrlCache.get(itemId);
-  const [imgUrl, setImgUrl] = useState<string | null>(cached || null);
-  const [loading, setLoading] = useState(!cached);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (cached) return;
+    setError(false);
+  }, [itemId]);
 
-    let active = true;
+  const imgUrl = `http://127.0.0.1:14201/files/${itemId}?retry=${retryKey}`;
 
-    const loadImg = async () => {
-      try {
-        const rawBlob = await getItemFile(itemId);
-        if (rawBlob && active) {
-          const blob = new Blob([rawBlob], { type: 'image/jpeg' });
-          const url = getCachedObjectUrl(itemId, blob);
-          setImgUrl(url);
-        }
-      } catch (err) {
-        console.error('Failed to load thumbnail:', err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    loadImg();
-
-    return () => {
-      active = false;
-    };
-  }, [itemId, cached]);
-
-  if (loading) {
+  if (error) {
     return (
-      <div className="w-full h-full aspect-video bg-card flex items-center justify-center select-none">
-        <span className="text-[10px] text-muted font-bold animate-pulse">[ Loading... ]</span>
-      </div>
-    );
-  }
-
-  if (!imgUrl) {
-    return (
-      <div className="w-full h-full aspect-video bg-black flex items-center justify-center select-none">
+      <div 
+        className="w-full h-full aspect-video bg-black flex items-center justify-center select-none cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          setError(false);
+          setRetryKey((k) => k + 1);
+        }}
+        title="Failed to load thumbnail. Click to retry."
+      >
         <ImageIcon size={24} className="text-zinc-700" />
       </div>
     );
@@ -76,9 +34,11 @@ export const PhotoThumbnail: React.FC<PhotoThumbnailProps> = ({ itemId }) => {
   return (
     <div className="w-full h-full aspect-video bg-black flex items-center justify-center overflow-hidden select-none">
       <img
+        key={imgUrl}
         src={imgUrl}
         alt="thumbnail"
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover bg-black"
+        onError={() => setError(true)}
       />
     </div>
   );
