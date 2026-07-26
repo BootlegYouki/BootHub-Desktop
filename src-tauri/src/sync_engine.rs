@@ -327,6 +327,7 @@ struct SyncPayload {
     events: Vec<SyncEvent>,
 }
 
+#[allow(dead_code)]
 fn is_device_paired(conn: &rusqlite::Connection) -> bool {
     let count: u64 = conn.query_row(
         "SELECT COUNT(*) FROM config WHERE key LIKE 'paired_%'",

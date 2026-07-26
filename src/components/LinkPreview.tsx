@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
 
 export interface PreviewData {
   image: string | null;
@@ -59,6 +60,35 @@ const isDirectImageUrl = (url: string) => {
   );
 };
 
+// Converts image URLs to Base64 data URLs via native Tauri fetch to bypass webview CORS and Instagram 403 blocks
+const fetchImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('data:image/')) return imageUrl;
+  try {
+    const res = await tauriFetch(imageUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    });
+    if (!res.ok) return imageUrl;
+    const arrayBuffer = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.warn('Failed to convert image to base64 via tauriFetch:', err);
+    return imageUrl;
+  }
+};
+
 export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) => {
   const [loading, setLoading] = useState<boolean>(() => !previewCache.has(url));
   const [data, setData] = useState<PreviewData | null>(() => previewCache.get(url) || null);
@@ -72,17 +102,21 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
     const fetchMetadata = async () => {
       setImageError(false);
       if (previewCache.has(url)) {
-        if (active) {
-          setData(previewCache.get(url) || null);
-          setLoading(false);
+        const cachedInMemory = previewCache.get(url);
+        if (cachedInMemory && cachedInMemory.image) {
+          if (active) {
+            setData(cachedInMemory);
+            setLoading(false);
+          }
+          return;
         }
-        return;
       }
 
       if (isDirectImageUrl(url)) {
         const filename = url.substring(url.lastIndexOf('/') + 1).split('?')[0];
+        const base64Img = await fetchImageAsBase64(url);
         const directData: PreviewData = {
-          image: url,
+          image: base64Img || url,
           title: filename || 'Direct Image',
           description: 'Direct Image Link',
         };
@@ -100,7 +134,8 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
         const cachedRaw = localStorage.getItem(cacheKey);
         if (cachedRaw) {
           const parsed = JSON.parse(cachedRaw) as PreviewData;
-          if (parsed && parsed.image) {
+          // Only use cache if image is valid base64 or valid URL
+          if (parsed && parsed.image && (parsed.image.startsWith('data:image/') || parsed.image.startsWith('http'))) {
             previewCache.set(url, parsed);
             if (active) {
               setData(parsed);
@@ -113,7 +148,7 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
         console.warn('Failed to read persistent preview cache:', e);
       }
 
-      // Scrape Webpage (CORS-free due to Tauri fetch adapter bound to axios)
+      // Scrape Webpage
       try {
         setLoading(true);
 
@@ -121,45 +156,75 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
           if (active) {
             controller.abort();
             setLoading(false);
-            setData(null);
           }
-        }, 4000);
+        }, 8000);
 
         let image: string | null = null;
         let title: string | null = null;
         let description: string | null = null;
 
-        try {
-          const response = await axios.get(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-            responseType: 'text',
-            signal: controller.signal
-          });
+        // Method 1: Social Media Specific Scraper (Facebook external hit UA)
+        if (url.includes('instagram.com')) {
+          try {
+            const instRes = await tauriFetch(url, {
+              method: 'GET',
+              headers: {
+                'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'
+              }
+            });
+            if (instRes.ok) {
+              const html = await instRes.text();
+              const metaTags = extractMetaTags(html);
+              const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+              const htmlTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : null;
+              const ogTitle = metaTags['og:title'] || metaTags['twitter:title'];
+              title = ogTitle ? decodeHtmlEntities(ogTitle) : htmlTitle;
 
-          const html = response.data;
-          const metaTags = extractMetaTags(html);
-          
-          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-          const htmlTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : null;
-          const ogTitle = metaTags['og:title'] || metaTags['twitter:title'];
-          title = ogTitle ? decodeHtmlEntities(ogTitle) : htmlTitle;
-          
-          const ogDesc = metaTags['og:description'] || metaTags['twitter:description'] || metaTags['description'];
-          description = ogDesc ? decodeHtmlEntities(ogDesc) : null;
-          
-          const ogImage = metaTags['og:image'] || metaTags['twitter:image'];
-          image = ogImage ? decodeHtmlEntities(ogImage) : null;
-        } catch (scrapeErr) {
-          console.warn('Scraping direct URL failed, trying Microlink fallback:', scrapeErr);
+              const ogDesc = metaTags['og:description'] || metaTags['twitter:description'] || metaTags['description'];
+              description = ogDesc ? decodeHtmlEntities(ogDesc) : null;
+
+              const ogImage = metaTags['og:image'] || metaTags['twitter:image'];
+              image = ogImage ? decodeHtmlEntities(ogImage) : null;
+            }
+          } catch (instErr) {
+            console.warn('Instagram bot fetch failed:', instErr);
+          }
         }
 
-        // Fallback to Microlink API if no image was found (especially for Instagram / TikTok / social media)
+        // Method 2: Direct URL Scrape via Axios
+        if (!image || !title) {
+          try {
+            const response = await axios.get(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+              },
+              responseType: 'text',
+              signal: controller.signal
+            });
+
+            const html = response.data;
+            const metaTags = extractMetaTags(html);
+            
+            const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            const htmlTitle = titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : null;
+            const ogTitle = metaTags['og:title'] || metaTags['twitter:title'];
+            if (!title) title = ogTitle ? decodeHtmlEntities(ogTitle) : htmlTitle;
+            
+            const ogDesc = metaTags['og:description'] || metaTags['twitter:description'] || metaTags['description'];
+            if (!description) description = ogDesc ? decodeHtmlEntities(ogDesc) : null;
+            
+            const ogImage = metaTags['og:image'] || metaTags['twitter:image'];
+            if (!image) image = ogImage ? decodeHtmlEntities(ogImage) : null;
+          } catch (scrapeErr) {
+            console.warn('Scraping direct URL failed, trying Microlink fallback:', scrapeErr);
+          }
+        }
+
+        // Method 3: Microlink API Fallback
         if (!image) {
           try {
             const microRes = await axios.get(`https://api.microlink.io/?url=${encodeURIComponent(url)}`, {
-              timeout: 3500,
+              timeout: 5000,
               signal: controller.signal,
             });
             if (microRes.data && microRes.data.status === 'success' && microRes.data.data) {
@@ -177,8 +242,14 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
           clearTimeout(timeoutId);
         }
 
+        // Convert image to Base64 so production tauri:// protocol won't get 403 Forbidden by Instagram CDN
+        let base64Image: string | null = null;
+        if (image) {
+          base64Image = await fetchImageAsBase64(image);
+        }
+
         const parsedData: PreviewData = {
-          image,
+          image: base64Image || image,
           title,
           description,
         };
@@ -186,13 +257,15 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
         const isValidData = !!(parsedData.image || parsedData.title);
         const finalData = isValidData ? parsedData : null;
 
-        previewCache.set(url, finalData);
-
         if (finalData) {
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(finalData));
-          } catch (e) {
-            console.warn('Failed to save to persistent preview cache:', e);
+          previewCache.set(url, finalData);
+          // Only save to localStorage if image is valid so missing images can retry on next launch
+          if (finalData.image) {
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(finalData));
+            } catch (e) {
+              console.warn('Failed to save to persistent preview cache:', e);
+            }
           }
         }
         
@@ -204,7 +277,6 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ url, mode = 'card' }) 
           clearTimeout(timeoutId);
         }
         console.warn('Failed to load link preview for:', url, err);
-        previewCache.set(url, null);
         if (active) setData(null);
       } finally {
         if (active) setLoading(false);
