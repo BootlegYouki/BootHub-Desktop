@@ -3,12 +3,14 @@ import {
   DumpItem,
   saveItemFile,
   addItem,
+  getItems,
+  updateItem,
 } from '../utils/db';
 
 import { TabType } from '../types';
 
 export function useDragAndDrop(itemsState: any) {
-  const { activeTab, activeFolderId } = itemsState;
+  const { activeTab, activeFolderId, setItems } = itemsState;
 
   const [inputText, setInputText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -108,8 +110,9 @@ export function useDragAndDrop(itemsState: any) {
         folderId: parentFolderId,
       };
 
-      await addItem(newFileItem);
+      setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
       await saveItemFile(fileId, file);
+      await addItem(newFileItem);
       newItemsList.push(newFileItem);
     } else if (entry.isDirectory) {
       const folderId = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
@@ -184,18 +187,37 @@ export function useDragAndDrop(itemsState: any) {
               const pad = (n: number) => n.toString().padStart(2, '0');
               const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-              const newFileItem: DumpItem = {
-                id: fileId,
-                type,
-                label,
-                value,
-                syncState: 'pending',
-                folderId: activeFolderId || undefined,
-              };
+              const currentItems = await getItems();
+              const existingItem = currentItems.find(i => 
+                i.type === type && 
+                i.folderId === (activeFolderId || undefined) && 
+                (isImage ? i.value === file.name : (
+                  (() => {
+                    try { return JSON.parse(i.value).name === file.name; } 
+                    catch { return false; }
+                  })()
+                ))
+              );
 
-              await addItem(newFileItem);
-              await saveItemFile(fileId, file);
-              newItemsList.push(newFileItem);
+              if (existingItem) {
+                await saveItemFile(existingItem.id, file);
+                await updateItem(existingItem.id, value, label);
+                setItems((prev: DumpItem[]) => prev.map(i => i.id === existingItem.id ? { ...existingItem, label, value, syncState: 'pending' } : i));
+              } else {
+                const newFileItem: DumpItem = {
+                  id: fileId,
+                  type,
+                  label,
+                  value,
+                  syncState: 'pending',
+                  folderId: activeFolderId || undefined,
+                };
+
+                setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
+                await saveItemFile(fileId, file);
+                await addItem(newFileItem);
+                newItemsList.push(newFileItem);
+              }
             }
           }
         }
@@ -230,18 +252,37 @@ export function useDragAndDrop(itemsState: any) {
       const pad = (n: number) => n.toString().padStart(2, '0');
       const label = `${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${now.getFullYear()} @ ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-      const newFileItem: DumpItem = {
-        id: fileId,
-        type,
-        label,
-        value,
-        syncState: 'pending',
-        folderId: activeFolderId || undefined,
-      };
+      const currentItems = await getItems();
+      const existingItem = currentItems.find(i => 
+        i.type === type && 
+        i.folderId === (activeFolderId || undefined) && 
+        (isImage ? i.value === file.name : (
+          (() => {
+            try { return JSON.parse(i.value).name === file.name; } 
+            catch { return false; }
+          })()
+        ))
+      );
 
-      await addItem(newFileItem);
-      await saveItemFile(fileId, file);
-      newItemsList.push(newFileItem);
+      if (existingItem) {
+        await saveItemFile(existingItem.id, file);
+        await updateItem(existingItem.id, value, label);
+        setItems((prev: DumpItem[]) => prev.map(i => i.id === existingItem.id ? { ...existingItem, label, value, syncState: 'pending' } : i));
+      } else {
+        const newFileItem: DumpItem = {
+          id: fileId,
+          type,
+          label,
+          value,
+          syncState: 'pending',
+          folderId: activeFolderId || undefined,
+        };
+
+        setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
+        await saveItemFile(fileId, file);
+        await addItem(newFileItem);
+        newItemsList.push(newFileItem);
+      }
     }
 
     // State is updated automatically via subscribeToStorage in db.ts
@@ -303,18 +344,37 @@ export function useDragAndDrop(itemsState: any) {
           now.getHours()
         )}:${pad(now.getMinutes())}`;
 
-        const newFileItem: DumpItem = {
-          id: fileId,
-          type,
-          label,
-          value,
-          syncState: 'pending',
-          folderId: activeFolderId || undefined,
-        };
+        const currentItems = await getItems();
+        const existingItem = currentItems.find(i => 
+          i.type === type && 
+          i.folderId === (activeFolderId || undefined) && 
+          (isImage ? i.value === file.name : (
+            (() => {
+              try { return JSON.parse(i.value).name === file.name; } 
+              catch { return false; }
+            })()
+          ))
+        );
 
-        await addItem(newFileItem);
-        await saveItemFile(fileId, file);
-        newItemsList.push(newFileItem);
+        if (existingItem) {
+          await saveItemFile(existingItem.id, file);
+          await updateItem(existingItem.id, value, label);
+          setItems((prev: DumpItem[]) => prev.map(i => i.id === existingItem.id ? { ...existingItem, label, value, syncState: 'pending' } : i));
+        } else {
+          const newFileItem: DumpItem = {
+            id: fileId,
+            type,
+            label,
+            value,
+            syncState: 'pending',
+            folderId: activeFolderId || undefined,
+          };
+
+          setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
+          await saveItemFile(fileId, file);
+          await addItem(newFileItem);
+          newItemsList.push(newFileItem);
+        }
       }
 
       // State is updated automatically via subscribeToStorage in db.ts

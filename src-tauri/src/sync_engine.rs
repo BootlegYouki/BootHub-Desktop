@@ -49,6 +49,7 @@ fn get_db_path(app: &AppHandle) -> std::path::PathBuf {
 pub fn init_db(app: &AppHandle) -> Arc<AppState> {
     let db_path = get_db_path(app);
     std::fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+    get_boothub_docs_dir(app); // Ensure the Documents/BootHub directory is created on startup
     let conn = Connection::open(&db_path).expect("Failed to open DB");
 
     conn.execute_batch(
@@ -100,13 +101,20 @@ pub fn init_db(app: &AppHandle) -> Arc<AppState> {
 
     let (ws_tx, _) = tokio::sync::broadcast::channel(100);
 
-    Arc::new(AppState {
+    let state = Arc::new(AppState {
         db: Mutex::new(conn),
         device_id,
         pairing_code: Mutex::new(None),
         app_handle: app.clone(),
         ws_tx,
-    })
+    });
+    
+    // Run initial sync to make sure file system structure exists
+    let conn = state.db.lock().unwrap();
+    sync_database_to_filesystem(app, &conn);
+    drop(conn);
+
+    state
 }
 
 #[tauri::command]
@@ -125,7 +133,7 @@ fn get_next_clock(conn: &Connection) -> u64 {
     clock + 1
 }
 
-fn rebuild_materialized_view(conn: &Connection, entity_id: &str) {
+fn rebuild_materialized_view(app_handle: Option<&AppHandle>, conn: &Connection, entity_id: &str) {
     let mut stmt = conn.prepare("SELECT action, payload FROM events WHERE entity_id = ?1 ORDER BY clock ASC, device_id ASC").unwrap();
     let events = stmt.query_map(params![entity_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -160,18 +168,28 @@ fn rebuild_materialized_view(conn: &Connection, entity_id: &str) {
     }
 
     if let Some(item) = current_item {
+        let r#type = item.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let initial_val = item.get("value").and_then(|v| v.as_str()).unwrap_or("");
+        
         conn.execute(
             "INSERT OR REPLACE INTO items (id, type, label, value, folderId, syncState) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 item.get("id").and_then(|v| v.as_str()).unwrap_or(entity_id),
-                item.get("type").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                r#type,
                 item.get("label").and_then(|v| v.as_str()).unwrap_or(""),
-                item.get("value").and_then(|v| v.as_str()).unwrap_or(""),
+                initial_val,
                 item.get("folderId").and_then(|v| v.as_str()),
                 "pending"
             ],
         ).unwrap();
+        
+
     } else {
+        if let Some(app) = app_handle {
+            if let Some(existing_path) = get_file_path_for_id_existing(app, conn, entity_id) {
+                let _ = std::fs::remove_file(existing_path);
+            }
+        }
         conn.execute("DELETE FROM items WHERE id = ?1", params![entity_id]).unwrap();
     }
 }
@@ -188,7 +206,8 @@ fn append_event(state: &AppState, entity_id: &str, action: &str, payload: serde_
         params![id, entity_id, clock, &state.device_id, action, payload_str, created_at],
     ).unwrap();
 
-    rebuild_materialized_view(&conn, entity_id);
+    rebuild_materialized_view(Some(&state.app_handle), &conn, entity_id);
+    sync_database_to_filesystem(&state.app_handle, &conn);
     let _ = state.ws_tx.send("SYNC_NEEDED".to_string());
 }
 
@@ -276,33 +295,326 @@ pub fn disconnect(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> 
 
 // ─── File Storage Commands ──────────────────────────────────────────────────────
 
-fn get_files_dir(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
+fn get_boothub_docs_dir(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
     use tauri::Manager;
-    let mut dir = app_handle.path().app_data_dir().unwrap();
-    dir.push("files");
+    let mut dir = app_handle.path().document_dir().unwrap_or_else(|_| app_handle.path().app_data_dir().unwrap());
+    dir.push("BootHub");
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
+fn tab_to_folder_name(tab: &str) -> String {
+    match tab {
+        "photo" => "Photos".to_string(),
+        "file" => "Files".to_string(),
+        "text" => "Texts".to_string(),
+        "link" => "Links".to_string(),
+        _ => format!("{}s", tab),
+    }
+}
+
+fn resolve_folder_path(conn: &rusqlite::Connection, folder_id: Option<String>, fallback_tab: &str) -> (String, String) {
+    let mut tab = fallback_tab.to_string();
+    if folder_id.is_none() {
+        return (tab, "".to_string());
+    }
+
+    let mut path_parts = Vec::new();
+    let mut current_id = folder_id.clone();
+    let mut visited = std::collections::HashSet::new();
+
+    while let Some(id) = current_id {
+        if visited.contains(&id) { break; }
+        visited.insert(id.clone());
+
+        let mut stmt = conn.prepare("SELECT label, value, folderId FROM items WHERE id = ?1 AND type = 'folder'").unwrap();
+        let res = stmt.query_row(params![id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?
+            ))
+        });
+
+        if let Ok((label, value, parent_id)) = res {
+            let mut folder_name = label.clone();
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&value) {
+                if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
+                    folder_name = name.to_string();
+                }
+                if let Some(t) = json.get("tab").and_then(|t| t.as_str()) {
+                    tab = t.to_string();
+                }
+            }
+            
+            let safe_name = folder_name.replace(|c: char| !c.is_alphanumeric() && c != ' ' && c != '-' && c != '_', "").trim().to_string();
+            let safe_name = if safe_name.is_empty() { "Folder".to_string() } else { safe_name };
+            
+            path_parts.insert(0, safe_name);
+            current_id = parent_id;
+        } else {
+            break;
+        }
+    }
+
+    (tab, path_parts.join("/"))
+}
+
+fn find_file_by_id_recursive(dir: &std::path::Path, id: &str) -> Option<std::path::PathBuf> {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(found) = find_file_by_id_recursive(&path, id) {
+                    return Some(found);
+                }
+            } else if let Ok(name) = entry.file_name().into_string() {
+                if name.starts_with(id) {
+                    return Some(path);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn get_file_path_for_id_existing(app_handle: &tauri::AppHandle, conn: &rusqlite::Connection, id: &str) -> Option<std::path::PathBuf> {
+    let base = get_boothub_docs_dir(app_handle);
+    if let Some(found) = find_file_by_id_recursive(&base, id) {
+        return Some(found);
+    }
+    
+    let query = "SELECT type, label, value, folderId FROM items WHERE id = ?1";
+    if let Ok((i_type, label, value, folder_id)) = conn.query_row(query, params![id], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?
+        ))
+    }) {
+        let expected = generate_expected_filename(conn, id, &i_type, &label, &value, &folder_id);
+        let (tab, rel) = resolve_folder_path(conn, folder_id, &i_type);
+        let mut dir = base.join(tab_to_folder_name(&tab));
+        if !rel.is_empty() {
+            dir.push(&rel);
+        }
+        let path = dir.join(expected);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn remove_empty_directories(dir: &std::path::Path, base: &std::path::Path, active_folders: &std::collections::HashSet<std::path::PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                remove_empty_directories(&path, base, active_folders);
+            }
+        }
+    }
+    
+    if dir == base { return; }
+    for rf in &["Photos", "Files", "Texts", "Links"] {
+        if dir == base.join(rf) {
+            return;
+        }
+    }
+    
+    if active_folders.contains(dir) { return; }
+    
+    let _ = std::fs::remove_dir(dir);
+}
+
+fn sync_database_to_filesystem(app: &AppHandle, conn: &rusqlite::Connection) {
+    let base = get_boothub_docs_dir(app);
+    
+    for rf in &["Photos", "Files", "Texts", "Links"] {
+        std::fs::create_dir_all(base.join(rf)).unwrap();
+    }
+    
+    let mut stmt = conn.prepare("SELECT id, type, label, value, folderId FROM items").unwrap();
+    let items: Vec<(String, String, String, String, Option<String>)> = stmt.query_map([], |row| {
+        Ok((
+            row.get(0)?,
+            row.get(1)?,
+            row.get(2)?,
+            row.get(3)?,
+            row.get(4)?
+        ))
+    }).unwrap().filter_map(Result::ok).collect();
+    
+    let mut active_folders = std::collections::HashSet::new();
+    for (id, item_type, _, _, _) in &items {
+        if item_type == "folder" {
+            let (tab, rel) = resolve_folder_path(conn, Some(id.clone()), "folder");
+            let mut dir = base.join(tab_to_folder_name(&tab));
+            if !rel.is_empty() {
+                dir.push(&rel);
+            }
+            active_folders.insert(dir.clone());
+            let _ = std::fs::create_dir_all(&dir);
+        }
+    }
+    
+    for (id, item_type, label, value, folder_id) in &items {
+        if item_type == "folder" { continue; }
+        
+        let (tab, rel) = resolve_folder_path(conn, folder_id.clone(), item_type);
+        let mut dir = base.join(tab_to_folder_name(&tab));
+        if !rel.is_empty() {
+            dir.push(&rel);
+        }
+        let _ = std::fs::create_dir_all(&dir);
+        
+        if item_type == "text" || item_type == "link" {
+            let sanitized_label = label.replace(|c: char| !c.is_alphanumeric() && c != ' ' && c != '-', "_");
+            let mut short_label = sanitized_label.trim().to_string();
+            if short_label.is_empty() {
+                short_label = item_type.to_string();
+            }
+            if short_label.len() > 30 {
+                short_label.truncate(30);
+            }
+            let filename = format!("{}_{}.txt", id, short_label);
+            let path = dir.join(&filename);
+            let _ = std::fs::write(path, value);
+        } else if item_type == "photo" || item_type == "file" {
+            if let Some(existing) = find_file_by_id_recursive(&base, id) {
+                let expected_filename = generate_expected_filename(conn, id, item_type, label, value, folder_id);
+                let expected_path = dir.join(expected_filename);
+                if existing != expected_path {
+                    let _ = std::fs::rename(existing, expected_path);
+                }
+            }
+        }
+    }
+    
+    remove_empty_directories(&base, &base, &active_folders);
+}
+
+fn generate_expected_filename(conn: &rusqlite::Connection, id: &str, item_type: &str, label: &str, value: &str, folder_id: &Option<String>) -> String {
+    let get_base = |i_id: &str, i_type: &str, i_label: &str, i_val: &str| -> String {
+        let mut f_name = if i_type == "file" {
+            let mut name_val = i_id.to_string();
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(i_val) {
+                if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
+                    name_val = name.to_string();
+                }
+            }
+            name_val
+        } else if i_type == "photo" {
+            let mut ext = "jpg".to_string();
+            if i_val.contains('.') {
+                let parts: Vec<&str> = i_val.split('.').collect();
+                if let Some(last) = parts.last() {
+                    ext = last.to_string();
+                }
+            }
+            let mut sanitized_label = i_label.replace(|c: char| !c.is_alphanumeric() && c != ' ' && c != '-', "_");
+            if sanitized_label.len() > 30 {
+                sanitized_label.truncate(30);
+            }
+            format!("{}.{}", sanitized_label.trim(), ext)
+        } else {
+            i_id.to_string()
+        };
+        f_name.replace('/', "_").replace('\\', "_")
+    };
+    
+    let base_name = get_base(id, item_type, label, value);
+    
+    let mut stmt = conn.prepare("SELECT id, label, value, folderId FROM items WHERE type = ?1 ORDER BY rowid ASC").unwrap();
+    let mut siblings = Vec::new();
+    let _ = stmt.query_map(params![item_type], |row| {
+        let sid: String = row.get(0)?;
+        let slabel: String = row.get(1)?;
+        let svalue: String = row.get(2)?;
+        let sfolder: Option<String> = row.get(3)?;
+        Ok((sid, slabel, svalue, sfolder))
+    }).map(|iter| {
+        for res in iter.flatten() {
+            if &res.3 == folder_id {
+                let s_base = get_base(&res.0, item_type, &res.1, &res.2);
+                if s_base == base_name {
+                    siblings.push(res.0);
+                }
+            }
+        }
+    });
+    
+    if let Some(pos) = siblings.iter().position(|sid| sid == id) {
+        if pos > 0 {
+            if let Some(dot_idx) = base_name.rfind('.') {
+                let (name, ext) = base_name.split_at(dot_idx);
+                return format!("{} ({}){}", name, pos, ext);
+            } else {
+                return format!("{} ({})", base_name, pos);
+            }
+        }
+    }
+    
+    base_name
+}
+
+fn get_new_file_path_for_id(app_handle: &tauri::AppHandle, id: &str, conn: &rusqlite::Connection) -> std::path::PathBuf {
+    if let Some(existing) = get_file_path_for_id_existing(app_handle, conn, id) {
+        let _ = std::fs::remove_file(existing);
+    }
+    let base = get_boothub_docs_dir(app_handle);
+
+    let mut stmt = conn.prepare("SELECT type, label, value, folderId FROM items WHERE id = ?1").unwrap();
+    let row = stmt.query_row(params![id], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?
+        ))
+    });
+
+    let (filename, folder_id, item_type) = if let Ok((i_type, label, value, f_id)) = row {
+        (generate_expected_filename(conn, id, &i_type, &label, &value, &f_id), f_id, i_type)
+    } else {
+        (id.to_string(), None, "photo".to_string())
+    };
+
+    let (tab, rel) = resolve_folder_path(conn, folder_id, &item_type);
+    let mut dir = base.join(tab_to_folder_name(&tab));
+    if !rel.is_empty() {
+        dir.push(&rel);
+    }
+    std::fs::create_dir_all(&dir).unwrap();
+
+    dir.push(filename);
+    dir
+}
+
+
 #[tauri::command]
-pub fn save_file(app: tauri::AppHandle, id: String, data: Vec<u8>) -> Result<(), String> {
-    let mut path = get_files_dir(&app);
-    path.push(&id);
+pub fn save_file(state: tauri::State<'_, Arc<AppState>>, id: String, data: Vec<u8>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    let path = get_new_file_path_for_id(&state.app_handle, &id, &conn);
     std::fs::write(&path, data).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn read_file(app: tauri::AppHandle, id: String) -> Result<Vec<u8>, String> {
-    let mut path = get_files_dir(&app);
-    path.push(&id);
-    std::fs::read(&path).map_err(|e| e.to_string())
+pub fn read_file(state: tauri::State<'_, Arc<AppState>>, id: String) -> Result<Vec<u8>, String> {
+    let conn = state.db.lock().unwrap();
+    if let Some(path) = get_file_path_for_id_existing(&state.app_handle, &conn, &id) {
+        std::fs::read(&path).map_err(|e| e.to_string())
+    } else {
+        Err("File not found".to_string())
+    }
 }
 
 #[tauri::command]
-pub fn delete_file(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    let mut path = get_files_dir(&app);
-    path.push(&id);
-    if path.exists() {
+pub fn delete_file(state: tauri::State<'_, Arc<AppState>>, id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    if let Some(path) = get_file_path_for_id_existing(&state.app_handle, &conn, &id) {
         std::fs::remove_file(&path).map_err(|e| e.to_string())
     } else {
         Ok(())
@@ -429,8 +741,10 @@ async fn handle_sync_post(
     tx.commit().unwrap();
     
     for entity in updated_entities {
-        rebuild_materialized_view(&conn, &entity);
+        rebuild_materialized_view(Some(&state.app_handle), &conn, &entity);
     }
+    
+    sync_database_to_filesystem(&state.app_handle, &conn);
     
     let _ = state.ws_tx.send("SYNC_NEEDED".to_string());
     
@@ -545,15 +859,46 @@ async fn handle_get_file(
                 .body(axum::body::Body::from("forbidden"))
                 .unwrap();
         }
+        let is_deleted: bool = conn.query_row(
+            "SELECT COUNT(*) FROM events WHERE entity_id = ?1 AND action = 'ITEM_DELETED'",
+            params![id],
+            |row| row.get::<_, u64>(0),
+        ).map(|c| c > 0).unwrap_or(false);
+
+        if is_deleted {
+            return axum::response::Response::builder()
+                .status(404)
+                .body(axum::body::Body::from("item is deleted"))
+                .unwrap();
+        }
     }
-    let mut path = get_files_dir(&state.app_handle);
-    path.push(&id);
-    if path.exists() {
-        if let Ok(bytes) = std::fs::read(&path) {
+    
+    let path = {
+        let conn = state.db.lock().unwrap();
+        get_file_path_for_id_existing(&state.app_handle, &conn, &id)
+    };
+    
+    if let Some(path) = path {
+        if let Ok(file) = tokio::fs::File::open(&path).await {
+            let metadata = file.metadata().await.unwrap();
+            let file_size = metadata.len();
+            let stream = futures_util::stream::unfold(file, |mut f| async move {
+                let mut buf = vec![0u8; 65536]; // 64KB chunks
+                use tokio::io::AsyncReadExt;
+                match f.read(&mut buf).await {
+                    Ok(0) => None,
+                    Ok(n) => {
+                        buf.truncate(n);
+                        Some((Ok::<_, std::io::Error>(axum::body::Bytes::from(buf)), f))
+                    }
+                    Err(e) => Some((Err(e), f)),
+                }
+            });
             return axum::response::Response::builder()
                 .status(200)
                 .header("Content-Type", "application/octet-stream")
-                .body(axum::body::Body::from(bytes))
+                .header("Content-Length", file_size.to_string())
+                .body(axum::body::Body::from_stream(stream))
                 .unwrap();
         }
     }
@@ -570,7 +915,7 @@ async fn handle_post_file(
     axum::extract::Path(id): axum::extract::Path<String>,
     request: axum::extract::Request,
 ) -> impl axum::response::IntoResponse {
-    {
+    let path = {
         let conn = state.db.lock().unwrap();
         if !is_authenticated(&conn, &headers, addr) {
             return axum::response::Response::builder()
@@ -578,12 +923,10 @@ async fn handle_post_file(
                 .body(axum::body::Body::from("forbidden"))
                 .unwrap();
         }
-    }
+        get_new_file_path_for_id(&state.app_handle, &id, &conn)
+    };
     use futures_util::StreamExt;
     use tokio::io::AsyncWriteExt;
-
-    let mut path = get_files_dir(&state.app_handle);
-    path.push(&id);
     
     let mut file = match tokio::fs::File::create(&path).await {
         Ok(f) => f,
@@ -684,14 +1027,23 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
                 }
             }
             client_msg = socket.recv() => {
-                if let Some(Ok(_)) = client_msg {
-                    // Ignore client messages for now
-                } else {
-                    break;
+                match client_msg {
+                    Some(Ok(Message::Text(text))) => {
+                        if let Some(window) = state.app_handle.get_webview_window("main") {
+                            let _ = window.emit("mobile-message", text);
+                        }
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(_)) | None => break,
                 }
             }
         }
     }
+}
+
+#[tauri::command]
+pub fn is_mobile_connected(state: tauri::State<'_, Arc<AppState>>) -> bool {
+    state.ws_tx.receiver_count() > 0
 }
 
 pub fn start_p2p_server(state: Arc<AppState>) {

@@ -119,7 +119,8 @@ pub fn run() {
             sync_engine::save_file,
             sync_engine::read_file,
             sync_engine::delete_file,
-            sync_engine::disconnect
+            sync_engine::disconnect,
+            sync_engine::is_mobile_connected
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

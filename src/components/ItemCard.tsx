@@ -197,9 +197,9 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
                     {(() => {
                       try {
                         const bytes = JSON.parse(item.value).size || 0;
-                        if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
-                        if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
-                        return (bytes / 1024).toFixed(1) + ' KB';
+                        if (bytes >= 1000000000) return (bytes / 1000000000).toFixed(1) + ' GB';
+                        if (bytes >= 1000000) return (bytes / 1000000).toFixed(1) + ' MB';
+                        return (bytes / 1000).toFixed(1) + ' KB';
                       } catch {
                         return '';
                       }

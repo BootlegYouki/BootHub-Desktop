@@ -9,8 +9,6 @@ import {
   FolderPlus,
   Plus,
   X,
-  Sun,
-  Moon,
   List,
   LayoutGrid,
 } from 'lucide-react';
@@ -26,12 +24,12 @@ import { LinksPage } from '../pages/LinksPage';
 import { TextsPage } from '../pages/TextsPage';
 import { PhotosPage } from '../pages/PhotosPage';
 import { FilesPage } from '../pages/FilesPage';
-import { useWorkspace, ACCENT_COLORS, AccentTheme, TabType } from '../contexts/WorkspaceContext';
+import { useWorkspace, ACCENT_COLORS, TabType } from '../contexts/WorkspaceContext';
 
 export function Layout() {
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const {
-    themeMode, handleSetThemeMode, accentTheme,
+    accentTheme,
     searchQuery, setSearchQuery,
     activeTab, setActiveTab,
     activeFolderId, setActiveFolderId,
@@ -55,40 +53,17 @@ export function Layout() {
     handleCardContextMenu, handleCardClick, handleCardDoubleClick
   } = useWorkspace();
 
-  const getPrimaryForeground = (theme: AccentTheme, isDark: boolean) => {
-    if (isDark) {
-      return '#000000';
-    } else {
-      if (theme === 'classic' || theme === 'rose' || theme === 'cobalt' || theme === 'green') {
-        return '#FFFFFF';
-      }
-      return '#000000';
-    }
+  const primaryColor = ACCENT_COLORS[accentTheme];
+
+  const themeColors = {
+    background: '#18181B', // zinc-900
+    foreground: '#FAFAFA',
+    card: '#18181B',
+    border: '#52525B', // zinc-600 (lighter, matches mobile contrast)
+    muted: '#A1A1AA', // zinc-400
+    primary: primaryColor,
+    primaryForeground: '#000000',
   };
-
-  const isDark = themeMode === 'dark';
-  const primaryColor = ACCENT_COLORS[accentTheme][isDark ? 'dark' : 'light'];
-  const primaryForeground = getPrimaryForeground(accentTheme, isDark);
-
-  const themeColors = isDark
-    ? {
-      background: '#18181B', // zinc-900
-      foreground: '#FAFAFA',
-      card: '#18181B',
-      border: '#52525B', // zinc-600 (lighter, matches mobile contrast)
-      muted: '#A1A1AA', // zinc-400
-      primary: primaryColor,
-      primaryForeground,
-    }
-    : {
-      background: '#F4F4F5', // zinc-100
-      foreground: '#09090B', // zinc-950
-      card: '#F4F4F5',
-      border: '#D4D4D8', // zinc-300 border
-      muted: '#71717A', // zinc-500
-      primary: primaryColor,
-      primaryForeground,
-    };
 
   const rootStyles = {
     '--color-background': themeColors.background,
@@ -112,7 +87,7 @@ export function Layout() {
         <nav className="shrink-0 select-none">
           <TuiContainer label="Nav" style={{ width: '100%' }}>
             <div className="flex items-center justify-between gap-6 py-1 select-none">
-              {/* Logo / Brand & Theme Toggle */}
+              {/* Logo / Brand */}
               <div className="flex items-center gap-4 shrink-0">
                 <div className="flex items-center gap-3">
                   <IconSvg className="w-8 h-8 text-primary shrink-0" />
@@ -121,13 +96,6 @@ export function Layout() {
                     <p className="text-[10px] text-muted leading-none mt-1">by BootlegYouki</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleSetThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
-                  className="w-9 h-9 flex items-center justify-center border-[1.5px] border-border hover:bg-primary/10 active:scale-95 cursor-pointer select-none shrink-0"
-                  title="Toggle Theme Mode"
-                >
-                  {themeMode === 'dark' ? <Sun size={18} className="text-primary" /> : <Moon size={18} className="text-primary" />}
-                </button>
               </div>
 
               {/* Search and New Folder */}
@@ -283,18 +251,18 @@ export function Layout() {
                   </div>
                   
                   {activeTab === 'link' && (
-                    <div className="flex items-center bg-card border-[1.5px] border-border shrink-0">
+                    <div className="flex items-center bg-card border-[1.5px] border-border shrink-0 h-6">
                       <button
                         onClick={() => setViewMode('grid')}
-                        className={`p-1 cursor-pointer transition-colors ${viewMode === 'grid' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
+                        className={`px-3 h-full flex items-center justify-center cursor-pointer transition-colors ${viewMode === 'grid' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
                         title="Grid View"
                       >
                         <LayoutGrid size={14} />
                       </button>
-                      <div className="w-px h-3 bg-border" />
+                      <div className="w-px h-full bg-border" />
                       <button
                         onClick={() => setViewMode('list')}
-                        className={`p-1 cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
+                        className={`px-3 h-full flex items-center justify-center cursor-pointer transition-colors ${viewMode === 'list' ? 'bg-primary text-black' : 'text-muted hover:bg-primary/20'}`}
                         title="List View"
                       >
                         <List size={14} />

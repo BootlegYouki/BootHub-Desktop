@@ -21,6 +21,20 @@ listen('storage-updated', () => {
   notifyStorageListeners();
 }).catch(console.error);
 
+listen<string>('mobile-message', (event) => {
+  try {
+    const data = JSON.parse(event.payload);
+    if (data.type === 'FILE_PROGRESS') {
+      const { itemId, progress } = data;
+      if (progress >= 1) {
+        clearProgress(itemId);
+      } else {
+        setProgressWithTimeout(itemId, 0.50 + (progress * 0.50));
+      }
+    }
+  } catch (e) {}
+});
+
 export const subscribeToStorage = (listener: () => void) => {
   storageListeners.push(listener);
   return () => {
@@ -166,9 +180,32 @@ export const getItemFile = async (itemId: string): Promise<Blob | null> => {
 
 export const fileProgressMap = new Map<string, number>();
 const fileProgressListeners = new Set<() => void>();
+const progressTimeouts = new Map<string, any>();
 
 export const notifyFileProgressListeners = () => {
   fileProgressListeners.forEach((fn) => fn());
+};
+
+const setProgressWithTimeout = (itemId: string, pct: number) => {
+  fileProgressMap.set(itemId, pct);
+  notifyFileProgressListeners();
+  if (progressTimeouts.has(itemId)) {
+    clearTimeout(progressTimeouts.get(itemId));
+  }
+  progressTimeouts.set(itemId, setTimeout(() => {
+    fileProgressMap.delete(itemId);
+    notifyFileProgressListeners();
+    progressTimeouts.delete(itemId);
+  }, 30000));
+};
+
+const clearProgress = (itemId: string) => {
+  fileProgressMap.delete(itemId);
+  notifyFileProgressListeners();
+  if (progressTimeouts.has(itemId)) {
+    clearTimeout(progressTimeouts.get(itemId));
+    progressTimeouts.delete(itemId);
+  }
 };
 
 export const subscribeToFileProgress = (fn: () => void) => {
@@ -179,30 +216,42 @@ export const subscribeToFileProgress = (fn: () => void) => {
 };
 
 export const saveItemFile = (itemId: string, blob: Blob): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    fileProgressMap.set(itemId, 0.01);
-    notifyFileProgressListeners();
+  return new Promise(async (resolve, reject) => {
+    setProgressWithTimeout(itemId, 0.01);
 
     const xhr = new XMLHttpRequest();
+    let isMobileConnected = false;
+    try {
+      isMobileConnected = await invoke('is_mobile_connected');
+    } catch (e) {}
+
     if (xhr.upload) {
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && event.total > 0) {
-          const pct = Math.min(0.99, Math.max(0.01, event.loaded / event.total));
-          fileProgressMap.set(itemId, pct);
-          notifyFileProgressListeners();
+          const loadedPct = event.loaded / event.total;
+          const pct = isMobileConnected 
+            ? Math.min(0.50, Math.max(0.01, loadedPct * 0.50))
+            : Math.min(0.99, Math.max(0.01, loadedPct));
+          setProgressWithTimeout(itemId, pct);
         }
       };
     }
     xhr.open('POST', `http://127.0.0.1:14201/files/${itemId}`);
     xhr.onload = () => {
-      fileProgressMap.delete(itemId);
-      notifyFileProgressListeners();
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error('HTTP status ' + xhr.status));
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (!isMobileConnected) {
+          clearProgress(itemId);
+        } else {
+          setProgressWithTimeout(itemId, 0.50);
+        }
+        resolve();
+      } else {
+        clearProgress(itemId);
+        reject(new Error('HTTP status ' + xhr.status));
+      }
     };
     xhr.onerror = (err) => {
-      fileProgressMap.delete(itemId);
-      notifyFileProgressListeners();
+      clearProgress(itemId);
       console.error('XHR file save failed:', err);
       reject(err);
     };

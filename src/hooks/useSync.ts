@@ -20,7 +20,6 @@ export function useSync(modals: any) {
   const [isPaired, setIsPaired] = useState(false);
   const [pairedDeviceName, setPairedDeviceName] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [accentTheme, setAccentTheme] = useState<AccentTheme>('classic');
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
@@ -34,8 +33,6 @@ export function useSync(modals: any) {
     let mounted = true;
     const init = async () => {
       try {
-        const theme = await getSetting('theme_mode');
-        if (theme && mounted) setThemeMode(theme as 'dark' | 'light');
         const accent = await getSetting('accent_theme');
         if (accent && mounted) setAccentTheme(accent as AccentTheme);
 
@@ -167,15 +164,9 @@ export function useSync(modals: any) {
     }, 600);
   };
 
-  const handleSetThemeMode = async (mode: 'dark' | 'light') => {
-    setThemeMode(mode);
-    await saveSetting('theme_mode', mode);
-  };
-
   return {
     deviceId, isPaired, setIsPaired, pairedDeviceName,
     pairingCode, handlePairDevice, cancelPairing,
-    themeMode, setThemeMode, handleSetThemeMode,
     accentTheme, setAccentTheme,
     syncStatus, setSyncStatus,
     handleDisconnect, handleManualSync,
