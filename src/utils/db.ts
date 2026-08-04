@@ -182,6 +182,33 @@ export const fileProgressMap = new Map<string, number>();
 const fileProgressListeners = new Set<() => void>();
 const progressTimeouts = new Map<string, any>();
 
+// Local blob URL cache for instant photo previews
+const localBlobUrls = new Map<string, string>();
+const blobUrlListeners = new Set<() => void>();
+
+const notifyBlobUrlListeners = () => {
+  blobUrlListeners.forEach((fn) => fn());
+};
+
+export const setLocalBlobUrl = (itemId: string, blob: Blob) => {
+  // Revoke old URL if exists to prevent memory leaks
+  const old = localBlobUrls.get(itemId);
+  if (old) URL.revokeObjectURL(old);
+  localBlobUrls.set(itemId, URL.createObjectURL(blob));
+  notifyBlobUrlListeners();
+};
+
+export const getLocalBlobUrl = (itemId: string): string | undefined => {
+  return localBlobUrls.get(itemId);
+};
+
+export const subscribeToLocalBlobUrls = (fn: () => void) => {
+  blobUrlListeners.add(fn);
+  return () => {
+    blobUrlListeners.delete(fn);
+  };
+};
+
 export const notifyFileProgressListeners = () => {
   fileProgressListeners.forEach((fn) => fn());
 };
@@ -216,6 +243,8 @@ export const subscribeToFileProgress = (fn: () => void) => {
 };
 
 export const saveItemFile = (itemId: string, blob: Blob): Promise<void> => {
+  // Cache a local blob URL immediately for instant preview
+  setLocalBlobUrl(itemId, blob);
   return new Promise(async (resolve, reject) => {
     setProgressWithTimeout(itemId, 0.01);
 

@@ -111,8 +111,8 @@ export function useDragAndDrop(itemsState: any) {
       };
 
       setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
-      await saveItemFile(fileId, file);
       await addItem(newFileItem);
+      await saveItemFile(fileId, file);
       newItemsList.push(newFileItem);
     } else if (entry.isDirectory) {
       const folderId = `folder_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
@@ -214,8 +214,8 @@ export function useDragAndDrop(itemsState: any) {
                 };
 
                 setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
-                await saveItemFile(fileId, file);
                 await addItem(newFileItem);
+                await saveItemFile(fileId, file);
                 newItemsList.push(newFileItem);
               }
             }
@@ -279,8 +279,8 @@ export function useDragAndDrop(itemsState: any) {
         };
 
         setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
-        await saveItemFile(fileId, file);
         await addItem(newFileItem);
+        await saveItemFile(fileId, file);
         newItemsList.push(newFileItem);
       }
     }
@@ -371,8 +371,8 @@ export function useDragAndDrop(itemsState: any) {
           };
 
           setItems((prev: DumpItem[]) => [newFileItem, ...prev]);
-          await saveItemFile(fileId, file);
           await addItem(newFileItem);
+          await saveItemFile(fileId, file);
           newItemsList.push(newFileItem);
         }
       }
@@ -387,7 +387,15 @@ export function useDragAndDrop(itemsState: any) {
   const handleInputPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     if (e.clipboardData.files.length > 0) {
       e.preventDefault();
-      const filesArray = Array.from(e.clipboardData.files);
+      // Clipboard-pasted images have generic names like "image.png" —
+      // rename them to be unique so duplicate detection doesn't treat
+      // every paste as the same file and overwrite previous ones.
+      const filesArray = Array.from(e.clipboardData.files).map((file) => {
+        const parts = file.name.split('.');
+        const ext = parts.length > 1 ? parts.pop() : 'png';
+        const uniqueName = `clipboard_${Date.now()}_${Math.random().toString(36).substring(2, 5)}.${ext}`;
+        return new File([file], uniqueName, { type: file.type });
+      });
       setAttachedFiles((prev) => [...prev, ...filesArray]);
     }
   };

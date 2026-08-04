@@ -125,17 +125,7 @@ export const ItemCard: React.FC<ItemCardProps> = React.memo(({
               ? 'border-primary shadow-[0_0_8px_rgba(168,85,247,0.3)]'
               : 'border-border hover:border-foreground'
           }`}
-          title="Double click to view full preview"
         >
-          {/* Sync Progress Bar */}
-          {isSyncing && (
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary/20 z-20 overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-150"
-                style={{ width: `${progress * 100}%` }}
-              />
-            </div>
-          )}
           <PhotoThumbnail itemId={item.id} />
         </div>
       ) : (
